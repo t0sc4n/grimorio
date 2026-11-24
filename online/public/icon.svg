@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#13111d"/>
+  <rect x="96" y="96" width="320" height="320" rx="36" fill="#efe3c6"/>
+  <path d="M96 380h320v0a36 36 0 0 1-36 36H132a36 36 0 0 1-36-36z" fill="#5b93ff"/>
+  <text x="256" y="322" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="230" font-weight="700" fill="#2a2116">G</text>
+  <text x="372" y="368" text-anchor="middle" font-family="Georgia, serif" font-size="54" font-weight="700" fill="#2a2116">4</text>
+  <line x1="40" y1="256" x2="96" y2="256" stroke="#f0c05a" stroke-width="10" stroke-linecap="round"/>
+  <line x1="416" y1="256" x2="472" y2="256" stroke="#f0c05a" stroke-width="10" stroke-linecap="round"/>
+</svg>

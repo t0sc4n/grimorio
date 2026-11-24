@@ -1,0 +1,32 @@
+// "Suggerisci": costa 3 PV, mette la mossa sulla griglia, si può confermare
+const puppeteer = require("puppeteer-core");
+const S = process.argv[2], URL = process.argv[3] || "http://127.0.0.1:8765/test.html", online = !!process.argv[3];
+const wait = ms => new Promise(r => setTimeout(r, ms)); const errors = [];
+const click = (page, t) => page.evaluate(t => { const b = [...document.querySelectorAll("#game button, #lobby:not([hidden]) button")].find(x => x.textContent.startsWith(t)); if (!b) throw new Error("pulsante non trovato: " + t); b.click(); }, t);
+(async () => {
+  const b = await puppeteer.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true, args: ["--no-sandbox"] });
+  const page = await b.newPage(); page.on("pageerror", e => errors.push(e.message));
+  page.on("console", m => { if (m.type() === "error" && !/fonts|favicon|404/.test(m.text())) errors.push(m.text()); });
+  await page.setViewport({ width: 400, height: 860, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await page.goto(URL, { waitUntil: "networkidle0" }); await page.evaluate(() => localStorage.clear());
+  await page.goto(URL, { waitUntil: "networkidle0" }); await wait(400);
+  await page.type("#nome", online ? "ProvaSugg" : "Aurelio"); if (online) await page.select("#avversario", "normale");
+  await click(page, "Crea partita");
+  await page.waitForFunction(() => document.body.innerText.includes("Tocca a te") && !document.body.innerText.includes("Carico il dizionario"), { timeout: 30000 });
+  await wait(1500);
+  const hp0 = await page.evaluate(() => S().hp[mySeat()]);
+  await click(page, "Suggerisci"); await wait(200); await click(page, "Sì, suggerisci");
+  await page.waitForFunction(() => ui.pending.length > 0 || ui.alch, { timeout: 60000, polling: 200 });
+  await wait(300);
+  const st = await page.evaluate(() => ({ hp: S().hp[mySeat()], pend: ui.pending.map(p => p.l + "@" + p.r + "," + p.c).join(" "), mode: ui.mode, log: S().log.slice(-1)[0], toast: (document.getElementById("toast") || {}).textContent }));
+  console.log("PV prima/dopo:", hp0, st.hp, "| mossa:", st.pend, "| modalità:", st.mode, "\n  cronaca:", st.log, "\n  avviso:", st.toast);
+  await page.screenshot({ path: S + "/shots/99_suggerimento" + (online ? "_online" : "") + ".png", fullPage: true });
+  await click(page, "Conferma"); await wait(500);
+  if (await page.$(".cell.launch")) await page.evaluate(() => document.querySelector(".cell.launch").click());
+  await page.waitForFunction(() => S().turn !== mySeat() || S().moveNo > 0, { timeout: 15000 });
+  console.log("dopo la conferma:", await page.evaluate(() => S().log.slice(-2).join(" | ")));
+  await page.waitForFunction(() => document.body.innerText.includes("Tocca a te"), { timeout: 60000, polling: 300 });
+  console.log("il computer risponde:", await page.evaluate(() => S().log.slice(-1)[0]));
+  console.log(errors.length ? "ERRORI " + errors.join(" | ") : "nessun errore");
+  await b.close();
+})().catch(e => { console.error("FALLITO", e.message); console.log(errors.join(" | ")); process.exit(1); });

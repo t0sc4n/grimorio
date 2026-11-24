@@ -1,0 +1,38 @@
+[Unit]
+Description=Grimorio - server di gioco
+After=network.target
+
+[Service]
+Type=simple
+User=grimorio
+Group=grimorio
+WorkingDirectory=/opt/grimorio
+ExecStart=/usr/bin/node /opt/grimorio/server.js
+Environment=NODE_ENV=production
+Environment=PORT=3077
+Environment=HOST=127.0.0.1
+Environment=DATA_DIR=/var/lib/grimorio
+Environment=SITE_URL=https://DOMINIO
+Environment=NODE_NO_WARNINGS=1
+Restart=on-failure
+RestartSec=5
+# protezioni: il servizio scrive solo nella sua cartella dati
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/grimorio
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+UMask=0077
+MemoryMax=700M
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,40 @@
+# --- Segreti: non vanno MAI nel repository ---
+private_key.txt
+pass.txt
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+.env
+.env.*
+# chiavi delle notifiche push generate dal server
+vapid.json
+
+# --- Dati del server (partite, giocatori, backup) ---
+*.db
+*.db-shm
+*.db-wal
+online/data/
+online/data_*/
+
+# --- Generati o scaricati ---
+node_modules/
+# pacchetto per la VPS: si ricrea dalla cartella online/ (vedi README)
+*.tar.gz
+# dizionario in chiaro: si ricava da prototipo/parole.txt.gz
+parole.txt
+!prototipo/parole.txt.gz
+# schermate e risultati delle prove
+shots/
+sim_*.json
+sim_*.log
+
+# --- File di sistema e di Google Drive ---
+*.gsheet
+*.gdoc
+*.gslides
+desktop.ini
+Thumbs.db
+.DS_Store
+.tmp.drivedownload/
+.tmp.driveupload/
