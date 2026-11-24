@@ -58,6 +58,7 @@ input[type=text], select {
 .gameitem .tag { grid-row: span 2; align-self: center; font-size: 13px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: var(--zS); color: var(--oro); }
 .gameitem .tag.idle { background: transparent; color: var(--muted); }
 .dotA { color: var(--blu); } .dotB { color: var(--rosso); }
+.fonte { font-size: 12px; margin-top: 4px; } .fonte a { color: var(--muted); }
 .note { font-size: 14px; color: var(--muted); }
 
 /* partita */
@@ -346,7 +347,13 @@ function renderLobby() {
       ids.length ? h("div", { class: "gamelist" }, ids.map(id => gameItem(id, games[id]))) : h("p", { class: "note", text: conn === "collego" ? "Carico le partite…" : "Nessuna partita. Creane una qui sopra." })),
     h("details", null, h("summary", { text: "Come sfidare qualcuno a distanza" }),
       h("p", { class: "note", style: "margin-top:8px", text: "Condividi questa pagina dal menu di claude.ai invitando l'avversario per email come Editor. Crea una partita: l'avversario la apre dall'elenco e tocca «Siediti come Mago Rosso». Ognuno gioca il proprio turno quando può; la partita si aggiorna da sola." })),
-    h("div", { class: "row" }, h("button", { class: "btn link", onclick: showRules, text: "Regole in breve" }), h("button", { class: "btn link", onclick: showExplorer, text: "Esplora il dizionario" }))
+    h("div", { class: "row" }, h("button", { class: "btn link", onclick: showRules, text: "Regole in breve" }), h("button", { class: "btn link", onclick: showExplorer, text: "Esplora il dizionario" })),
+    h("p", { class: "note fonte" },
+      "Grimorio è software libero: ",
+      h("a", { href: "https://github.com/t0sc4n/grimorio", target: "_blank", rel: "noopener", text: "codice sorgente" }),
+      " (AGPL-3.0) · ",
+      h("a", { href: "https://github.com/t0sc4n/grimorio/blob/main/prototipo/DIZIONARIO.md", target: "_blank", rel: "noopener", text: "dizionario" }),
+      " (GPL-3.0, dall'Estensione linguistica italiana di A. Pescetti e altri)")
   );
 }
 function gameItem(id, d) {

@@ -384,3 +384,7 @@ Tutte le varianti sono s1n; 100 partite ciascuna, salvo il lancio vietato.
 5. **Durata:** circa 40 turni a testa con 30 PV. Per il gioco a distanza 15-20 sarebbero più adatti: da provare con 20 o 25 PV.
 6. ~~Tempo massimo per turno~~: deciso, 48 ore (vedi «Partite a distanza»).
 7. **Vantaggi elementali** (per ora solo aritmetica).
+
+---
+
+*© 2026 t0sc4n. Questo regolamento è distribuito con licenza [Creative Commons Attribuzione - Condividi allo stesso modo 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.it) (CC BY-SA 4.0).*

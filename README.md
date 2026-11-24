@@ -104,6 +104,15 @@ Le istruzioni complete sono in [`online/ISTRUZIONI.md`](online/ISTRUZIONI.md).
 
 ## Licenze
 
-- **Dizionario** (`prototipo/parole.txt.gz`): deriva dal dizionario italiano Hunspell di LibreOffice, distribuito con licenza **GPL-3**. Chi redistribuisce il dizionario deve rispettarla.
-- **Font** (Alegreya Sans, Cinzel Decorative): licenza SIL Open Font License.
-- **Codice e regolamento:** la licenza è ancora da scegliere. Finché non c'è un file `LICENSE`, tutti i diritti sono riservati all'autore.
+| Che cosa | Licenza | File |
+|---|---|---|
+| **Codice** (`prototipo/`, `online/`, script e prove) | [GNU AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html) | [`LICENSE`](LICENSE) |
+| **Regolamento** (`regolamento_e_struttura*.md`) | [Creative Commons BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.it) | [`LICENSE-regolamento.txt`](LICENSE-regolamento.txt) |
+| **Dizionario** (`prototipo/parole.txt.gz`) | GPL-3.0: deriva dal dizionario italiano Hunspell di LibreOffice | compatibile con la AGPL-3.0 |
+| **Font** (Alegreya Sans, Cinzel Decorative) | SIL Open Font License 1.1 | |
+
+Copyright © 2026 t0sc4n.
+
+**Codice (AGPL-3.0).** Puoi usare, modificare e ridistribuire Grimorio, anche a scopo commerciale. Le versioni modificate devono però restare con la stessa licenza e con il codice sorgente disponibile. Questo vale anche se le offri soltanto come sito o servizio online: chi gioca deve poter scaricare il sorgente della versione che sta usando.
+
+**Regolamento (CC BY-SA 4.0).** Puoi riprendere e adattare il regolamento citando l'autore e il link a questo repository. Le versioni modificate vanno condivise con la stessa licenza.

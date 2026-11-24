@@ -252,7 +252,13 @@ function renderLobby() {
       h("p", { class: "note", style: "margin-top:8px", text: "Crea una partita scegliendo «Un'altra persona» e tocca «Invita un amico»: manda il link su WhatsApp o dove preferisci. Chi lo apre sceglie un nome e si siede come Mago Rosso. Ognuno gioca il proprio turno quando può; con le notifiche attive il telefono ti avvisa quando tocca a te." })),
     h("details", null, h("summary", { text: "Installa Grimorio sul telefono" }),
       h("p", { class: "note", style: "margin-top:8px", text: "In Chrome per Android apri il menu ⋮ e scegli «Aggiungi a schermata Home» (o «Installa app»). Grimorio si aprirà a tutto schermo come un'app e potrà mandarti le notifiche." })),
-    h("div", { class: "row" }, h("button", { class: "btn link", onclick: showRules, text: "Regole in breve" }), h("button", { class: "btn link", onclick: showExplorer, text: "Esplora il dizionario" }), CRED ? h("button", { class: "btn link", onclick: showProfile, text: "Il tuo profilo" }) : null)
+    h("div", { class: "row" }, h("button", { class: "btn link", onclick: showRules, text: "Regole in breve" }), h("button", { class: "btn link", onclick: showExplorer, text: "Esplora il dizionario" }), CRED ? h("button", { class: "btn link", onclick: showProfile, text: "Il tuo profilo" }) : null),
+    h("p", { class: "note fonte" },
+      "Grimorio è software libero: ",
+      h("a", { href: "https://github.com/t0sc4n/grimorio", target: "_blank", rel: "noopener", text: "codice sorgente" }),
+      " (AGPL-3.0) · ",
+      h("a", { href: "https://github.com/t0sc4n/grimorio/blob/main/prototipo/DIZIONARIO.md", target: "_blank", rel: "noopener", text: "dizionario" }),
+      " (GPL-3.0, dall'Estensione linguistica italiana di A. Pescetti e altri)")
   );
 }
 // tempo rimasto per il turno, in parole ("31 ore", "40 minuti")
