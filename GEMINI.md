@@ -62,7 +62,7 @@ online/                      Versione produzione VPS (Ubuntu + Apache + systemd)
   - Errori e cronaca del motore: `MSG.it` e `MSG.en` in `engine.js` (devono avere esattamente le stesse chiavi).
   - Errori e notifiche push del server: `SRV_EN` in `online/server.js`.
   - Verifica stringhe mancanti: `python prototipo/strumenti/controlla_traduzioni.py prototipo/index.html` (e su `online/public/app.js`).
-- **Service Worker:** quando modifichi `index.html`, `app.js`, `engine.js`, `fonts.css` o altri asset della shell in `online/public/`, valuta di incrementare `CACHE` in `online/public/sw.js`.
+- **Service Worker e versione UI:** quando modifichi `index.html`, `app.js`, `engine.js`, `fonts.css` o altri asset della shell in `online/public/`, incrementa sia `VER` in `prototipo/index.html` sia `CACHE` (`grimorio-vNN`) in `online/public/sw.js` mantenendoli allineati.
 - **Fine riga su Windows:** il repository viene sviluppato su Windows e deployato su Linux (Ubuntu). Mantieni fine riga **LF** sugli script shell (`online/*.sh`) e sui file di `online/deploy/`.
 - **Memoria sulla VPS:** `online/deploy/grimorio.service` imposta `MemoryMax=700M`. Il server carica i dizionari sia nel processo principale sia in `ai-worker.js` (più eventuale fusione `it+en`): evita strutture inutilmente pesanti in memoria.
 

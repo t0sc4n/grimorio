@@ -1,6 +1,8 @@
 // Grimorio — interfaccia di gioco (versione online)
 "use strict";
 const G = window.Grimorio;
+const VER = "v16";
+document.getElementById("ver").textContent = VER;
 const BASE = G.PRESETS.v5f; // v5e + lettura dal lato (campo girato per ciascun giocatore)
 // regole da mostrare: quelle della partita aperta, altrimenti quelle scelte nel menu tr("Regole")
 function regoleAttive() {
@@ -36,10 +38,11 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 };
 let toastT = null;
+function hideToast() { clearTimeout(toastT); const t = document.getElementById("toast"); if (t) t.hidden = true; }
 function toast(msg, err) {
   const t = document.getElementById("toast");
   t.textContent = msg; t.className = "toast" + (err ? " err" : ""); t.hidden = false;
-  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, err ? 4200 : 3000);
+  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, err ? 4200 : 2800);
 }
 function sheet(title, body) {
   const s = document.getElementById("sheet"), inn = document.getElementById("sheetIn");
@@ -63,10 +66,147 @@ function tr(testo, a) {
   if (a) x = x.replace(/\{(\w+)\}/g, (_, k) => a[k] === undefined ? "" : String(a[k]));
   return x;
 }
-function setLang(l) { LANG = l; store.set("grimorio-lingua", l); G.setLinguaUI(l); document.documentElement.lang = l; side = null; render(); }
+function setLang(l) { LANG = l; store.set("grimorio-lingua", l); G.setLinguaUI(l); document.documentElement.lang = l; hideToast(); side = null; render(); }
 function langSwitch() {
   return h("div", { class: "langsw", role: "group", "aria-label": tr("Lingua dell'interfaccia") },
     Object.keys(LINGUE_UI).map(l => h("button", { class: "btn small" + (LANG === l ? " on" : ""), "aria-pressed": LANG === l, lang: l, title: LINGUE_UI[l], onclick: () => setLang(l), text: l.toUpperCase() })));
+}
+
+// ---------- effetti sonori (Web Audio API procedurale, nessun file esterno) ----------
+let SOUND = store.get("grimorio-suoni", true) !== false;
+let audioC = null;
+function audioCtx() {
+  if (audioC) return audioC;
+  const C = window.AudioContext || window.webkitAudioContext;
+  if (!C) return null;
+  try { audioC = new C(); } catch (e) { return null; }
+  return audioC;
+}
+function unlockAudio() {
+  const c = audioCtx();
+  if (c && c.state === "suspended") c.resume().catch(() => {});
+  return c;
+}
+window.addEventListener("pointerdown", unlockAudio, { capture: true, passive: true });
+window.addEventListener("keydown", unlockAudio, { capture: true, passive: true });
+function tone(c, type, f0, f1, delay, dur, gain) {
+  const t = c.currentTime + delay;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t);
+  if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(gain, t + Math.min(0.025, dur * 0.25));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+function noiseBurst(c, delay, dur, f0, f1, q, gain) {
+  const n = Math.max(1, Math.floor(c.sampleRate * dur));
+  const buf = c.createBuffer(1, n, c.sampleRate), ch = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) ch[i] = Math.random() * 2 - 1;
+  const t = c.currentTime + delay;
+  const src = c.createBufferSource(), flt = c.createBiquadFilter(), g = c.createGain();
+  src.buffer = buf; flt.type = "bandpass"; flt.Q.value = q;
+  flt.frequency.setValueAtTime(f0, t);
+  if (f1 && f1 !== f0) flt.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(gain, t + Math.min(0.02, dur * 0.2));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(flt); flt.connect(g); g.connect(c.destination);
+  src.start(t); src.stop(t + dur + 0.02);
+}
+function playSfx(kind) {
+  if (!SOUND) return;
+  try {
+    const c = unlockAudio();
+    if (!c) return;
+    if (kind === "inizio") {
+      [293.66, 369.99, 440, 587.33].forEach((f, i) => tone(c, "triangle", f, f, i * 0.085, 0.24, 0.09));
+      tone(c, "sine", 587.33, 587.33, 0.255, 0.28, 0.05);
+    } else if (kind === "parola") {
+      noiseBurst(c, 0, 0.045, 950, 620, 2.2, 0.07);
+      tone(c, "triangle", 587.33, 587.33, 0.02, 0.11, 0.08);
+      tone(c, "triangle", 880, 880, 0.08, 0.14, 0.07);
+    } else if (kind === "difesa") {
+      noiseBurst(c, 0, 0.04, 720, 500, 2, 0.06);
+      tone(c, "triangle", 329.63, 329.63, 0.01, 0.22, 0.08);
+      tone(c, "sine", 493.88, 493.88, 0.04, 0.24, 0.06);
+    } else if (kind === "falo") {
+      noiseBurst(c, 0, 0.26, 260, 920, 1.4, 0.11);
+      tone(c, "triangle", 293.66, 440, 0.03, 0.22, 0.07);
+    } else if (kind === "attacco") {
+      noiseBurst(c, 0, 0.24, 340, 1750, 2.2, 0.1);
+      tone(c, "sine", 220, 587.33, 0.01, 0.26, 0.09);
+      tone(c, "triangle", 329.63, 659.25, 0.04, 0.22, 0.05);
+    } else if (kind === "colpo") {
+      tone(c, "sine", 155, 48, 0, 0.22, 0.16);
+      noiseBurst(c, 0, 0.11, 780, 190, 1.2, 0.11);
+      tone(c, "triangle", 659.25, 659.25, 0.03, 0.26, 0.07);
+      tone(c, "sine", 987.77, 987.77, 0.05, 0.28, 0.04);
+    } else if (kind === "vittoria") {
+      [293.66, 440, 587.33, 739.99, 880].forEach((f, i) => tone(c, "triangle", f, f, i * 0.09, 0.28 + (i === 4 ? 0.2 : 0), 0.09));
+      tone(c, "sine", 587.33, 587.33, 0.36, 0.38, 0.06);
+    } else if (kind === "sconfitta") {
+      [440, 349.23, 293.66].forEach((f, i) => tone(c, "sine", f, f * 0.98, i * 0.15, 0.28, 0.08));
+    }
+  } catch (e) {}
+}
+function seenSfx(k) {
+  const m = store.get("grimorio-sfx-visti", {});
+  if (m[k]) return true;
+  m[k] = 1;
+  const ks = Object.keys(m);
+  if (ks.length > 60) delete m[ks[0]];
+  store.set("grimorio-sfx-visti", m);
+  return false;
+}
+function onStateSounds(id, prev, s, isNewMove) {
+  if (!id || !s) return;
+  const ready = s.seats && s.seats.A && s.seats.B;
+  if (ready && s.moveNo === 0 && !s.winner && !seenSfx("s:" + id)) playSfx("inizio");
+  let hitDelay = 0;
+  if (isNewMove && s.last && s.last.kind === "parola") {
+    if (s.last.type === "attacco") {
+      playSfx("attacco");
+      if (s.last.damage > 0) {
+        const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        hitDelay = reduce || !s.last.path || !s.last.path.length ? 200 : s.last.path.length * 230;
+        setTimeout(() => playSfx("colpo"), hitDelay);
+      }
+    } else playSfx(s.last.type === "falo" ? "falo" : s.last.type === "difesa" ? "difesa" : "parola");
+  }
+  if (s.winner && !seenSfx("e:" + id)) {
+    const me = mySeat();
+    const both = s.seats && s.seats.A && s.seats.B && s.seats.A.tok === MYID && s.seats.B.tok === MYID;
+    const endKind = (!me || both || s.winner === me) ? "vittoria" : "sconfitta";
+    const endDelay = hitDelay ? hitDelay + 360 : (isNewMove && s.last && s.last.kind === "parola" ? 260 : 0);
+    if (endDelay) setTimeout(() => playSfx(endKind), endDelay);
+    else playSfx(endKind);
+  }
+}
+function toggleSound() {
+  SOUND = !SOUND; store.set("grimorio-suoni", SOUND);
+  if (SOUND) playSfx("parola");
+  toast(SOUND ? tr("Suoni attivi") : tr("Suoni disattivati"));
+  render();
+}
+function speakerSvg(on) {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("width", "17"); svg.setAttribute("height", "17"); svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none"); svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "2.1"); svg.setAttribute("stroke-linecap", "round"); svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  const d = on
+    ? ["M11 5L6 9H2v6h4l5 4V5z", "M15.5 8.5a5 5 0 0 1 0 7", "M18.5 5.5a9 9 0 0 1 0 13"]
+    : ["M11 5L6 9H2v6h4l5 4V5z", "M22 9l-6 6", "M16 9l6 6"];
+  d.forEach(p => { const el = document.createElementNS(ns, "path"); el.setAttribute("d", p); svg.appendChild(el); });
+  return svg;
+}
+function soundBtn() {
+  const label = SOUND ? tr("Suoni attivi") : tr("Suoni disattivati");
+  return h("button", { class: "btn small icon" + (SOUND ? " on" : ""), "aria-pressed": String(SOUND), "aria-label": label, title: label, onclick: toggleSound }, speakerSvg(SOUND));
 }
 const EN = {
   "Collegamento alle partite condivise…": "Connecting to the shared games…",
@@ -318,7 +458,9 @@ const EN = {
   " o ": " or ",
   "Dizionario: {l}": "Dictionary: {l}",
   "A turno scrivi una parola in {l} sulla griglia, come a Scarabeo: tutte le parole che si formano devono essere valide. Al primo turno scrivi solo nel tuo Sanctum.": "Take turns writing a word in {l} on the grid, crossword-style: every word formed must be valid. On your first turn you write only in your Sanctum.",
-  " Con più dizionari vale una parola di uno qualsiasi, e la Sacca è mista: 26 lettere, con quantità e valori nella media delle lingue scelte.": " With more than one dictionary a word from any of them counts, and the Bag is mixed: 26 letters, with quantities and values averaged over the chosen languages."
+  " Con più dizionari vale una parola di uno qualsiasi, e la Sacca è mista: 26 lettere, con quantità e valori nella media delle lingue scelte.": " With more than one dictionary a word from any of them counts, and the Bag is mixed: 26 letters, with quantities and values averaged over the chosen languages.",
+  "Suoni attivi": "Sounds on",
+  "Suoni disattivati": "Sounds off"
 };
 // testi della sola versione online
 Object.assign(EN, {"Nessuna connessione con il server. Controlla la rete e riprova.": "No connection to the server. Check the network and try again.", "Errore del server ({n}).": "Server error ({n}).", "Questo browser non supporta le notifiche. Su Android usa Chrome e installa Grimorio sulla schermata Home.": "This browser does not support notifications. On Android, use Chrome and install Grimorio on the Home screen.", "Notifiche non attivate: puoi abilitarle dalle impostazioni del browser.": "Notifications not enabled: you can turn them on in the browser settings.", "Notifiche attive: ti avviso quando tocca a te.": "Notifications on: I will let you know when it is your turn.", "Non riesco ad attivare le notifiche su questo dispositivo.": "I can't turn on notifications on this device.", "🔔 Avvisami quando tocca a me": "🔔 Notify me when it is my turn", "Ti sfido a Grimorio! Apri il link e siediti come Mago Rosso.": "I challenge you to Grimorio! Open the link and sit down as the Red Wizard.", "Link copiato: incollalo in un messaggio all'avversario.": "Link copied: paste it in a message to your opponent.", "Invita un amico": "Invite a friend", "Copia questo link e mandalo a chi vuoi sfidare:": "Copy this link and send it to whoever you want to challenge:", "Crea o accetta una partita: il profilo nasce lì.": "Create or accept a game: your profile starts there.", "Il tuo profilo": "Your profile", "Sei {n} su questo dispositivo.": "You are {n} on this device.", "Per giocare le stesse partite da un altro telefono o computer, apri lì questo link. Non mandarlo a nessuno: chi lo apre gioca al posto tuo.": "To play the same games from another phone or computer, open this link there. Don't send it to anyone: whoever opens it plays as you.", "Link di accesso copiato.": "Access link copied.", "Copia il link di accesso": "Copy the access link", "Accesso eseguito: bentornato, {n}.": "Signed in: welcome back, {n}.", "Il link di accesso non è valido.": "The access link is not valid.", "Se pensi che il link sia finito in mani sbagliate, crea un nuovo codice: tutti gli altri dispositivi verranno scollegati.": "If you think the link has fallen into the wrong hands, create a new code: all other devices will be signed out.", "Scollega gli altri dispositivi": "Sign out other devices", "Fatto: gli altri dispositivi sono scollegati. Questo resta collegato.": "Done: the other devices are signed out. This one stays signed in.", "Collegamento al server…": "Connecting to the server…", "Non riesco a raggiungere il server. Controlla la connessione e riprova.": "I can't reach the server. Check your connection and try again.", "Nessuna partita. Creane una qui sopra, oppure apri il link d'invito che ti hanno mandato.": "No games yet. Create one above, or open the invite link you were sent.", "Crea una partita scegliendo «Un'altra persona» e tocca «Invita un amico»: manda il link su WhatsApp o dove preferisci. Chi lo apre sceglie un nome e si siede come Mago Rosso. Ognuno gioca il proprio turno quando può; con le notifiche attive il telefono ti avvisa quando tocca a te.": "Create a game choosing “Another person” and tap “Invite a friend”: send the link on WhatsApp or wherever you like. Whoever opens it picks a name and sits down as the Red Wizard. Each of you plays your turn when you can; with notifications on, your phone tells you when it is your turn.", "Installa Grimorio sul telefono": "Install Grimorio on your phone", "In Chrome per Android apri il menu ⋮ e scegli «Aggiungi a schermata Home» (o «Installa app»). Grimorio si aprirà a tutto schermo come un'app e potrà mandarti le notifiche.": "In Chrome for Android open the ⋮ menu and choose “Add to Home screen” (or “Install app”). Grimorio will open full screen like an app and can send you notifications.", "Partita creata: ora tocca «Invita un amico».": "Game created: now tap “Invite a friend”.", "Questa partita non esiste più.": "This game no longer exists.", "Partita tolta dall'elenco.": "Game removed from the list.", "Sei il Mago Rosso. Inizia il Mago Blu: ti avviso quando tocca a te.": "You are the Red Wizard. The Blue Wizard starts: I will let you know when it is your turn.", "Sei stato sfidato a Grimorio!": "You have been challenged to Grimorio!", "Manda il link d'invito: la partita inizia quando l'avversario si siede.": "Send the invite link: the game starts when your opponent sits down.", "Scegli il tuo nome e siediti come Mago Rosso.": "Choose your name and sit down as the Red Wizard.", "Puoi chiudere: ti avviso quando tocca a te.": "You can close the page: I will let you know when it is your turn.", "Siediti come Mago Rosso": "Sit down as the Red Wizard", "Questa partita ha già due giocatori. Se è tua, aprila dal dispositivo con cui giochi o usa il link di accesso del tuo profilo.": "This game already has two players. If it is yours, open it from the device you play on or use the access link in your profile.", "Togli dall'elenco": "Remove from the list", "Sì, elimina la partita": "Yes, delete the game", "Sì, abbandono (vince l'avversario)": "Yes, I give up (my opponent wins)", "Abbandona la partita": "Leave the game", "tempo scaduto": "time is up", "1 ora": "1 hour", "{n} ore": "{n} hours", "{n} minuti": "{n} minutes", "Tempo scaduto: il turno sta per passare.": "Time is up: the turn is about to pass.", "Hai ancora {t} per giocare, poi il turno passa.": "You still have {t} to play, then the turn passes.", "Ha ancora {t} per giocare.": "They still have {t} to play.", "A distanza hai 48 ore per ogni turno: allo scadere il turno passa da solo. Chi lo lascia scadere 2 volte di fila perde la partita.": "When playing remotely you have 48 hours per turn: when time runs out the turn passes by itself. Whoever lets it run out twice in a row loses the game."});
@@ -553,8 +695,11 @@ function renderLobby() {
     h("option", { value: "normale", text: tr("Il computer, livello normale") }));
   const canCreate = conn !== "collego";
   fill(L, 
-    h("div", { class: "card", style: "background:transparent;border:none;padding:0" },
-      langSwitch(),
+    h("div", { class: "hero" },
+      h("div", { class: "hero-top" },
+        h("div", { class: "hero-runes", "aria-hidden": "true" },
+          [["t", "var(--blu)"], ["0", "var(--oro)"], ["s", "var(--fuoco)"], ["c", "var(--gelo)"], ["4", "var(--oro)"], ["n", "var(--terra)"]].map(([l, c]) => h("span", { class: "rmini", style: "--c:" + c }, l))),
+        h("div", { class: "topctrl" }, soundBtn(), langSwitch())),
       h("h1", { text: "Grimorio" }),
       h("p", { class: "sub", text: tr("Duelli di parole tra due maghi. Scrivi incantesimi nel tuo Sanctum, costruisci un ponte fino al Passo Arcano e invadi il Sanctum nemico.") })),
     connMsg ? h("p", { class: "note", text: connMsg }) : null,
@@ -565,8 +710,9 @@ function renderLobby() {
       h("label", { class: "field", for: "avversario" }, tr("Avversario"), vs),
       h("div", { class: "field", role: "group", "aria-labelledby": "diz-titolo" }, h("span", { id: "diz-titolo", text: tr("Dizionari della partita") }),
         h("div", { class: "dzsel" }, dzBox.map(x => h("label", { class: "check", for: x.id }, x, h("span", { lang: x.value, text: LINGUE_UI[x.value] })))), dzNota),
-      h("label", { class: "field", for: "regole" }, tr("Regole"), reg),
-      h("label", { class: "field", for: "pv" }, tr("Punti Vita iniziali"), hp),
+      h("div", { class: "form2" },
+        h("label", { class: "field", for: "regole" }, tr("Regole"), reg),
+        h("label", { class: "field", for: "pv" }, tr("Punti Vita iniziali"), hp)),
       h("label", { class: "check", for: "entrambi" }, both, tr("Gioca entrambi i maghi (per provare da solo)")),
       h("button", { class: "btn primary", disabled: !canCreate, onclick: () => createGame(+hp.value, both.checked, vs.value, reg.value, dizSel()), text: tr("Crea partita") })),
     h("div", { class: "card" },
@@ -651,10 +797,12 @@ function onGameData(data, first) {
   usaDiz(G.dizionariDi(s.cfg || {}));
   if (!prev || prev.moveNo !== s.moveNo) { const keepOrder = ui.order; ui = freshUi(); ui.order = keepOrder; }
   const seen = store.get("grimorio-visto", {});
-  if (s.last && s.last.seq && seen[cur.id] !== s.last.seq) {
+  const isNewMove = !!(s.last && s.last.seq && seen[cur.id] !== s.last.seq);
+  if (isNewMove) {
     seen[cur.id] = s.last.seq; store.set("grimorio-visto", seen);
     announce(s); startAnim(s.last);
   }
+  onStateSounds(cur.id, prev, s, isNewMove);
   render();
 }
 function announce(s) {
@@ -784,7 +932,7 @@ function rotatePlace() {
   else { ui.place.dir = old; toast(tr("Girata, «{w}» non entra da nessuna parte.", { w: ui.place.word }), true); }
   render();
 }
-function cancelPlace() { ui.place = null; ui.pending = []; ui.mode = null; render(); }
+function cancelPlace() { ui.place = null; ui.pending = []; ui.mode = null; hideToast(); render(); }
 // trascinamento: si prende la parola da una sua lettera
 function onBoardPointerDown(e) {
   if (!ui.place || !myTurn() || ui.busy) return;
@@ -1087,8 +1235,7 @@ function previewCore(v, s) {
 function pbar(s, p) {
   const max = (s.cfg && s.cfg.hp) || 30, hp = s.hp[p];
   const chips = [];
-  if (G.bridgeActive(s, p)) chips.push(h("span", { class: "chip ok", text: tr("Ponte attivo") }));
-  else chips.push(h("span", { class: "chip", text: tr("Ponte non attivo") }));
+  if (G.bridgeActive(s, p)) chips.push(h("span", { class: "chip ok", text: "✦ " + tr("Ponte attivo") }));
   const cons = Object.values(s.words).filter(w => w.o === p && w.consacrata).length;
   if (s.cfg && s.cfg.maxConsacrate) chips.push(h("span", { class: "chip", text: tr("Consacrate {a}/{b}", { a: cons, b: s.cfg.maxConsacrate }) }));
   if (s.cfg && s.cfg.faloOgni) { const left = s.cfg.faloOgni - (s.turns[p] - s.lastFalo[p]); chips.push(h("span", { class: "chip" + (left <= 0 ? " ok" : ""), text: left <= 0 ? tr("Falò pronto") : tr("Falò tra {n} turni", { n: left }) })); }
@@ -1191,7 +1338,7 @@ function renderGame() {
     actions.push(h("button", { class: "btn", onclick: rotatePlace, text: tr("↻ Gira ({d})", { d: tr(ui.place.dir === "h" ? tr("ora orizzontale") : tr("ora verticale")) }) }));
   } else if (turn && ui.pending.length) {
     const pv = previewLine();
-    actions.push(h("button", { class: "btn", onclick: () => { ui.pending = []; ui.mode = null; ui.place = null; render(); }, text: tr("Ritira") }));
+    actions.push(h("button", { class: "btn", onclick: () => { ui.pending = []; ui.mode = null; ui.place = null; hideToast(); render(); }, text: tr("Ritira") }));
     if (ui.place) actions.push(h("button", { class: "btn", "aria-label": tr("Gira la parola"), onclick: rotatePlace, text: tr("↻ Gira") }));
     if (s.cfg && s.cfg.attaccoLibero) actions.push(h("button", { class: "btn" + (ui.mode === "attacca" ? " on" : ""), "aria-pressed": ui.mode === "attacca", onclick: () => { ui.mode = ui.mode === "attacca" ? null : "attacca"; render(); }, text: tr("Attacca") }));
     actions.push(h("button", { class: "btn" + (ui.mode === "falo" ? " on" : ""), "aria-pressed": ui.mode === "falo", onclick: () => { ui.mode = ui.mode === "falo" ? null : "falo"; render(); }, text: tr("Falò") }));
@@ -1222,13 +1369,14 @@ function renderGame() {
     h("div", { class: "topbar" },
       h("button", { class: "btn small", onclick: leaveGame, text: tr("← Partite") }),
       h("span", { class: "title", text: "Grimorio" }),
+      soundBtn(),
       h("button", { class: "btn small", onclick: showRules, text: tr("Regole") })),
     pbar(s, top),
     h("div", { class: "boardwrap" }, boardEl(s)),
     h("div", { class: "legend" },
-      h("span", { style: "--c:var(--z" + top + ")", text: tr("▲ Sanctum {c}", { c: tr(top === "A" ? tr("Blu") : tr("Rosso")) }) + (me === top && !both ? tr(" (tuo)") : "") }),
-      h("span", { style: "--c:var(--zS)", text: tr("Passo Arcano · → ↓ ↑ verso di lettura") }),
-      h("span", { style: "--c:var(--z" + G.enemy(top) + ")", text: tr("▼ Sanctum {c}", { c: tr(top === "A" ? tr("Rosso") : tr("Blu")) }) + (me === G.enemy(top) && !both ? tr(" (tuo)") : "") })),
+      h("span", { style: "--c:var(--z" + top + ");--b:var(--" + (top === "A" ? "blu" : "rosso") + ")", text: tr("▲ Sanctum {c}", { c: tr(top === "A" ? tr("Blu") : tr("Rosso")) }) + (me === top && !both ? tr(" (tuo)") : "") }),
+      h("span", { style: "--c:var(--zS);--b:var(--oro)", text: tr("Passo Arcano · → ↓ ↑ verso di lettura") }),
+      h("span", { style: "--c:var(--z" + G.enemy(top) + ");--b:var(--" + (top === "A" ? "rosso" : "blu") + ")", text: tr("▼ Sanctum {c}", { c: tr(top === "A" ? tr("Rosso") : tr("Blu")) }) + (me === G.enemy(top) && !both ? tr(" (tuo)") : "") })),
     pbar(s, G.enemy(top)),
     h("p", { class: "status" }, status, sub ? h("small", { text: sub }) : null, me && clockText(s, myTurn()) ? h("small", { id: "orologio", text: clockText(s, myTurn()) }) : null),
     s.winner ? h("p", { class: "winner", text: "✦ " + seatName(s, s.winner) + " ✦" }) : null,
@@ -1256,7 +1404,9 @@ function render() {
   if (inGame) renderGame(); else renderLobby();
   updateSide();
 }
+document.getElementById("toast").addEventListener("click", hideToast);
 document.getElementById("sheet").addEventListener("click", e => { if (e.target.id === "sheet") closeSheet(); });
+window.addEventListener("keydown", e => { if (e.key === "Escape" && !document.getElementById("sheet").hidden) closeSheet(); });
 window.addEventListener("hashchange", () => { const m = /^#g=([a-z0-9]+)/.exec(location.hash); if (m && (!cur || cur.id !== m[1])) openGame(m[1]); });
 async function init() {
   usaDiz(dizScelti()); render();

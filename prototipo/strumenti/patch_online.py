@@ -210,10 +210,12 @@ function onGameData(data, first) {
   usaDiz(G.dizionariDi(s.cfg || {}));
   if (!prev || prev.moveNo !== s.moveNo) { const keepOrder = ui.order; ui = freshUi(); ui.order = keepOrder; }
   const seen = store.get("grimorio-visto", {});
-  if (s.last && s.last.seq && seen[cur.id] !== s.last.seq) {
+  const isNewMove = !!(s.last && s.last.seq && seen[cur.id] !== s.last.seq);
+  if (isNewMove) {
     seen[cur.id] = s.last.seq; store.set("grimorio-visto", seen);
     announce(s); startAnim(s.last);
   }
+  onStateSounds(cur.id, prev, s, isNewMove);
   render();
 }
 ''')

@@ -373,6 +373,22 @@ Tutte le varianti sono s1n; 100 partite ciascuna, salvo il lancio vietato.
   * a **60 PV** è la combinazione migliore finora: circa 17 turni a testa, 51 / 49, 81% a segno. Le difese sono poche (circa 8 consacrazioni a partita) ma robuste, e il Falò diventa il modo naturale per toglierle (vedi l'esempio NON su MUNIVO nel prototipo).
 * **Una sola difesa consacrata** non basta: la difesa torna quasi inutile (96% a segno, 1 attacco intercettato a partita) e il Blu vince 60 / 40. Il massimo resta 2.
 
+### Partite in inglese e con più dizionari 🧪 (simulazioni del 25/11/2026)
+
+Le partite possono usare il dizionario inglese (ENABLE, 141 047 parole, Sacca inglese a 26 lettere) oppure italiano e inglese insieme (una parola vale se è in uno dei due, Sacca mista). In entrambi i casi le regole sono s1 con 60 PV. Il confronto è con la s1 italiana (Scudo di riga, difesa a valore doppio, 60 PV).
+
+| Partite | Numero | Turni a testa (mediana) | Blu / Rosso | Attacchi | A segno | Danno per colpo | Intercettati | Falò |
+|---|---|---|---|---|---|---|---|---|
+| Italiano (riferimento) | 100 | 17,3 (16) | 51 / 49 | 11,0 | 81% | 11,6 | 3,6 | 3,7 |
+| Inglese, prima serie | 100 | 17,8 (16,5) | 49 / 51 | 11,7 | 82% | 11,1 | 3,5 | 3,8 |
+| Inglese, seconda serie | 100 | 17,2 (15,5) | 54 / 46 | 11,2 | 83% | 11,4 | 3,5 | 4,0 |
+| Italiano + inglese | 50 | 15,3 (14) | 28 / 22 | 10,5 | 83% | 12,8 | 3,1 | 3,0 |
+
+**Cosa emerge:**
+* **L'inglese è equilibrato come l'italiano:** stessa durata, stesse vittorie, stessa quota di colpi a segno. La Sacca inglese non ha bisogno di ritocchi.
+* **Con due dizionari le partite sono un po' più corte** (circa 2 turni a testa in meno). Le mosse possibili per turno salgono da circa 900 a circa 1 260, quindi è più facile trovare parole forti e il danno per colpo sale a 12,8. Il Blu vince 28 su 50: su così poche partite non è un segnale.
+* **Ancora aperto:** la seconda serie di 50 partite miste si è fermata per mancanza di memoria del computer di prova. Va ripetuta per confermare i numeri.
+
 ---
 
 ## ❓ Punti ancora aperti
