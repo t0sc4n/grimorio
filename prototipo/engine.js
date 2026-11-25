@@ -3,8 +3,15 @@
 (function (root) {
   "use strict";
   var COLS = 11, ROWS = 9, STAFFA = 4, MID0 = 3, MID1 = 5; // MID0..MID1 = righe della Terra di Mezzo
-  var VAL = { A: 1, E: 1, I: 1, O: 1, C: 2, R: 2, S: 2, T: 2, U: 3, L: 3, M: 3, N: 3, P: 4, D: 4, F: 4, G: 4, B: 4, V: 4, H: 8, Q: 10, Z: 10 };
-  var BAG = { A: 12, E: 10, I: 8, O: 8, C: 3, R: 3, S: 2, T: 2, U: 5, L: 4, M: 4, N: 4, P: 4, D: 3, F: 3, G: 3, B: 2, V: 3, H: 3, Q: 2, Z: 2 };
+  /* Lingua della partita (cfg.lingua): ognuna ha il suo dizionario, i valori delle lettere (VAL) e la Sacca (BAG, 90 tessere).
+     La Sacca inglese è ricavata dalle frequenze del dizionario ENABLE (strumenti/sacca_inglese.js) e ritoccata a mano. */
+  var LINGUE = {
+    it: { VAL: { A: 1, E: 1, I: 1, O: 1, C: 2, R: 2, S: 2, T: 2, U: 3, L: 3, M: 3, N: 3, P: 4, D: 4, F: 4, G: 4, B: 4, V: 4, H: 8, Q: 10, Z: 10 },
+          BAG: { A: 12, E: 10, I: 8, O: 8, C: 3, R: 3, S: 2, T: 2, U: 5, L: 4, M: 4, N: 4, P: 4, D: 3, F: 3, G: 3, B: 2, V: 3, H: 3, Q: 2, Z: 2 } },
+    en: { VAL: { E: 1, A: 1, I: 1, O: 1, S: 2, R: 2, T: 2, N: 2, L: 3, D: 3, U: 3, C: 3, M: 3, P: 4, G: 4, H: 4, B: 4, Y: 4, F: 4, W: 4, K: 5, V: 5, X: 8, Z: 8, J: 8, Q: 10 },
+          BAG: { E: 11, A: 8, I: 7, O: 7, U: 3, S: 4, R: 6, T: 6, N: 6, L: 4, D: 4, C: 2, P: 2, G: 2, M: 2, H: 2, B: 2, Y: 2, F: 2, W: 2, K: 1, V: 1, Z: 1, X: 1, J: 1, Q: 1 } }
+  };
+  var VAL = {}, BAG = {};  // della lingua attiva: applyCfg ne cambia il contenuto (gli oggetti esportati restano gli stessi)
   var MULT = {};
   /* Opzioni di regola (salvate in ogni partita):
      mid: righe della Terra di Mezzo, hp: Punti Vita, decay: consumo attacchi per turno,
@@ -15,7 +22,7 @@
   var CFG = { mid: 3, hp: 20, hand: 7, decay: 1, radici: false, attacchi: "ovunque", difesaLarga: 0, faloOgni: 0,
     consumoNeutre: 0, ponteCentro: false, tempestaLocale: false, tettoDanno: 0,
     consacrazione: 0, bloccoInvasione: false, consacrataConsuma: false, maxConsacrate: 0, letturaDalLato: false,
-    attaccoLibero: false, attaccoConsuma: false };
+    attaccoLibero: false, attaccoConsuma: false, lingua: "it", dizionari: ["it"] };
   /* s1: attaccoLibero: niente lessico, qualsiasi parola può essere lanciata se il giocatore lo sceglie (opts.attacca);
      attaccoConsuma: la parola lanciata sparisce subito dopo l'attacco (restano le lettere che reggono altre parole). */
   /* letturaDalLato: ognuno vede il proprio Sanctum in basso; le parole verticali si leggono dall'alto in basso
@@ -47,6 +54,10 @@
     s1r2h60: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga" },
     // s1 adottata il 24/11/2026: lancio solo dal Sanctum nemico, parola lanciata consumata, Scudo di riga, consacrazione x2 (max 2), 60 PV
     s1: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga" },
+    // s1 in inglese: stesse regole, dizionario ENABLE e Sacca inglese
+    s1en: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", lingua: "en" },
+    // s1 con i dizionari italiano e inglese insieme (Sacca mista)
+    s1iten: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", dizionari: ["it", "en"] },
     s1r: { mid: 5, hp: 80, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 0.5, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga" },
     s1b: { mid: 5, hp: 80, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 0.5, bloccoInvasione: true, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true },
     s1d: { mid: 5, hp: 30, hand: 7, decay: 1, radici: "lunghe", attacchi: "sanctum", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 0.5, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, passo: 2 },
@@ -59,6 +70,12 @@
     Object.keys(c).forEach(function (k) { CFG[k] = c[k]; });
     // regole aggiunte dopo: le partite salvate prima non le hanno, quindi valgono spente
     ["attaccoLibero", "attaccoConsuma", "passo", "scudo"].forEach(function (k) { if (!(k in c)) CFG[k] = false; });
+    // dizionari della partita: cfg.dizionari (uno o più), altrimenti cfg.lingua; le partite di prima sono in italiano
+    CFG.dizionari = dizionariDi(c);
+    CFG.lingua = CFG.dizionari.join("+");   // "it", "en", "it+en"…: con più dizionari il lessico elementale non vale
+    var L = sacca(CFG.dizionari);
+    [[VAL, L.VAL], [BAG, L.BAG]].forEach(function (x) { Object.keys(x[0]).forEach(function (k) { delete x[0][k]; }); Object.assign(x[0], x[1]); });
+    aggiornaDict();
     ROWS = 6 + CFG.mid; MID0 = 3; MID1 = 2 + CFG.mid; STAFFA = 3 + Math.floor(CFG.mid / 2);
     MULT = {};
     [MID0, MID1].forEach(function (r) { MULT[r + ",2"] = "LD"; MULT[r + ",8"] = "LD"; MULT[r + ",5"] = "PD"; });
@@ -73,7 +90,8 @@
     difesa: "MUR SCUD MURO MURA SCUDO TERRA ALBERO ROCCIA PIETRA MONTE ARGINE BASTIONE TORRE ROCCA CORAZZA ELMO BARRIERA DIGA QUERCIA ZOLLA ARGILLA BOSCO RADICE"
   };
   var CLASS = {};   // parola -> {type, el}
-  var DICT = null;  // Set di parole valide
+  var DICTS = {};    // lingua -> insieme di parole valide (con .has)
+  var DICT = null;  // quello della lingua attiva
 
   function forms(w) {
     var out = [w], e2 = w.slice(-2), base = w.slice(0, -1), b2 = w.slice(0, -2);
@@ -92,13 +110,68 @@
     Object.keys(LESSICO).forEach(function (el) {
       LESSICO[el].split(" ").forEach(function (w) {
         forms(w).forEach(function (f, i) {
-          if (i > 0 && !(DICT && DICT.has(f))) return; // le forme flesse solo se esistono nel dizionario
+          if (i > 0 && !(DICTS.it && DICTS.it.has(f))) return; // le forme flesse solo se esistono nel dizionario
           if (!CLASS[f]) CLASS[f] = el === "difesa" ? { type: "difesa", el: "terra" } : { type: "attacco", el: el };
         });
       });
     });
   }
-  function setDict(set) { DICT = set; buildClass(); }
+  function setDict(set, lingua) {
+    lingua = lingua || "it"; DICTS[lingua] = set;
+    aggiornaDict();
+    if (lingua === "it") buildClass();
+  }
+  // elenco valido e ordinato dei dizionari di una cfg (ordine di LINGUE)
+  function dizionariDi(c) {
+    var l = c && Array.isArray(c.dizionari) ? c.dizionari : [c && c.lingua];
+    l = Object.keys(LINGUE).filter(function (k) { return l.indexOf(k) >= 0; });
+    return l.length ? l : ["it"];
+  }
+  // con più dizionari una parola è valida se è in almeno uno
+  function aggiornaDict() {
+    var l = CFG.dizionari || ["it"];
+    if (l.length === 1) { DICT = DICTS[l[0]] || null; return; }
+    DICT = { has: function (w) { for (var i = 0; i < l.length; i++) if (DICTS[l[i]] && DICTS[l[i]].has(w)) return true; return false; } };
+  }
+  /* Sacca di una o più lingue. Con più lingue è mista: la quantità di ogni lettera è la media delle quote nelle Sacche
+     delle lingue scelte (riportata a 90 tessere, almeno 1 per lettera), il valore è la media dei valori dove la lettera c'è. */
+  var SACCHE = {};
+  function sacca(l) {
+    if (l.length === 1) return LINGUE[l[0]];
+    var k = l.join("+");
+    if (SACCHE[k]) return SACCHE[k];
+    var lett = {}, quota = {}, val = {}, tot = 90;
+    l.forEach(function (x) {
+      var B = LINGUE[x].BAG, n = 0, ch;
+      for (ch in B) n += B[ch];
+      for (ch in B) { lett[ch] = 1; quota[ch] = (quota[ch] || 0) + B[ch] / n / l.length; }
+    });
+    var tutte = Object.keys(lett).sort();
+    tutte.forEach(function (ch) {
+      var vs = l.filter(function (x) { return LINGUE[x].VAL[ch]; }).map(function (x) { return LINGUE[x].VAL[ch]; });
+      val[ch] = Math.round(vs.reduce(function (a, b) { return a + b; }, 0) / vs.length);
+    });
+    // quantità: almeno 1, poi le tessere che restano ai resti più grandi
+    var bag = {}, usate = 0;
+    tutte.forEach(function (ch) { bag[ch] = Math.max(1, Math.floor(quota[ch] * tot)); usate += bag[ch]; });
+    var resti = tutte.slice().sort(function (a, b) { return (quota[b] * tot - bag[b]) - (quota[a] * tot - bag[a]) || (a < b ? -1 : 1); });
+    for (var i = 0; usate < tot; i = (i + 1) % resti.length) { bag[resti[i]]++; usate++; }
+    while (usate > tot) { var big = tutte.filter(function (ch) { return bag[ch] > 1; }).sort(function (a, b) { return (bag[b] - quota[b] * tot) - (bag[a] - quota[a] * tot); })[0]; bag[big]--; usate--; }
+    return (SACCHE[k] = { VAL: val, BAG: bag });
+  }
+  // unisce dizionari (testi ordinati, una parola per riga) in un unico testo ordinato e senza doppioni
+  function unisciTesti(testi) {
+    if (testi.length === 1) return testi[0];
+    var liste = testi.map(function (t) { return t.split("\n"); }), pos = liste.map(function () { return 0; }), out = [], ultimo = null;
+    for (;;) {
+      var min = null, j = -1;
+      for (var i = 0; i < liste.length; i++) if (pos[i] < liste[i].length && (min === null || liste[i][pos[i]] < min)) { min = liste[i][pos[i]]; j = i; }
+      if (j < 0) break;
+      pos[j]++;
+      if (min !== ultimo && min) { out.push(min); ultimo = min; }
+    }
+    return out.join("\n");
+  }
   // radici del designer (regolamento v1): con CFG.radici una parola che le contiene diventa elementale
   var RADICI = {
     fuoco: ["IRA", "SOL", "FOC", "VAMP"],
@@ -112,8 +185,10 @@
     acqua: ["ACQU", "PIOGG", "PIOV", "FIUM", "TORRENT", "CASCAT", "NEBBI", "DILUV", "RUGIAD", "OCEAN", "ONDAT", "ONDOS", "LAGUN"],
     difesa: ["MURA", "SCUD", "ROCCI", "PIETR", "MONTAGN", "ARGIN", "BASTION", "TORRI", "TORRE", "CORAZZ", "BARRIER", "QUERC", "ARGILL", "RADIC", "ALBER", "FORTEZZ", "BALUARD", "CASTELL"]
   };
-  function isWord(w) { return !!CLASS[w] || !!(DICT && DICT.has(w)); }
+  // il lessico elementale (CLASS, radici) esiste solo in italiano
+  function isWord(w) { return (CFG.lingua === "it" && !!CLASS[w]) || !!(DICT && DICT.has(w)); }
   function classify(w) {
+    if (CFG.lingua !== "it") return { type: "neutra", el: null };
     if (CLASS[w]) return CLASS[w];
     if (CFG.radici) {
       var RR = CFG.radici === "lunghe" ? RADICI_LUNGHE : RADICI;
@@ -150,13 +225,112 @@
       if (!s.bag.length) {
         if (!s.focolare.length) break;
         s.bag = shuffle(s.focolare, rng); s.focolare = [];
-        addLog(s, "La Sacca era vuota: il Focolare è stato rimescolato.");
+        addLog(s, "saccaVuota");
       }
       s.hands[p].push(s.bag.pop());
     }
   }
 
-  function addLog(s, msg) { s.log.push(msg); if (s.log.length > 40) s.log = s.log.slice(-40); }
+  function addLog(s, k, a) { s.log.push(a ? { k: k, a: a } : { k: k }); if (s.log.length > 40) s.log = s.log.slice(-40); }
+  /* ---------- messaggi (errori e cronaca) nelle lingue dell'interfaccia ---------- */
+  var LINGUA_UI = "it";
+  var MSG = {
+    it: {
+      posaLettera: "Posa almeno una lettera.", fuoriCampo: "Fuori dal campo.", occupata: "Casella già occupata.",
+      noLettera: "Lettera non presente nel Grimorio.", rigaColonna: "Le lettere vanno in una sola riga o colonna.",
+      continua: "Le lettere devono formare una parola continua.", dueLettere: "Una parola ha almeno due lettere.",
+      noDiz: "{w} non è nel dizionario.", noDizCroce: "Si forma anche {w}, che non è nel dizionario.",
+      primoTurno: "Al primo turno si scrive solo nel proprio Sanctum.",
+      ponteMezzo: "Nella Terra di Mezzo la parola deve collegarsi al tuo ponte.",
+      serveColl: "Per entrare nel Sanctum nemico serve il Collegamento Magico attivo.",
+      aggancio: "Nel Sanctum nemico devi agganciarti a una parola dell'avversario.",
+      faloAttesa: "Il Falò si può usare una volta ogni {n} turni (di nuovo tra {m}).",
+      faloBersaglio: "Per il Falò la parola deve allungare o incrociare una parola nella Terra di Mezzo o nel Sanctum nemico.",
+      faloColl: "Per bruciare nel Sanctum nemico serve il Collegamento Magico attivo.",
+      soloElementali: "In questa partita attaccano solo le parole elementali.",
+      lancioMisto: "Una parola lanciata non può essere anche Falò o difesa.",
+      lancioSanctum: "Per attaccare la parola deve avere una lettera in un Sanctum.",
+      noConsacr: "La Consacrazione non è attiva in questa partita.", consNeutre: "Si consacrano solo parole neutre.",
+      consSanctum: "Si consacrano solo parole scritte tutte nel proprio Sanctum.",
+      consMax: "Hai già {n} difese consacrate attive (massimo {m}).",
+      finita: "La partita è finita.", noTurno: "Non è il tuo turno.", sceltaAlch: "Scegli almeno una lettera da cambiare.",
+      suggPV: "Ti servono più di {n} PV per chiedere un suggerimento.",
+      saccaVuota: "La Sacca era vuota: il Focolare è stato rimescolato.", vittoria: "Vince {p}!",
+      spengono: "Si spengono: {l}.", falo: "{p} scatena un Grande Falò con {w}: brucia {l}.",
+      lancio: function (a) {
+        return a.p + " lancia " + a.w + " (" + (a.el ? a.el + ", " : "") + "potenza " + a.n + ")" +
+          (a.d ? ": " + a.d + " danni." : ": l'incantesimo si dissolve.") + (a.c ? " La parola si consuma." : "");
+      },
+      disintegrato: "{w} viene disintegrato.", consacra: "{p} consacra {w} come difesa (resistenza {n}).",
+      bloccato: "{p} scrive {w}, ma le difese nemiche impediscono il lancio.",
+      evoca: "{p} evoca {w} nella Terra di Mezzo (i Cataclismi non sono ancora attivi).",
+      erige: "{p} erige {w} (resistenza {n}).", scrive: "{p} scrive {w}.",
+      tempesta: "Tempesta Arcana! Estratta la {l}: forza {n}.", crollano: "Crollano: {l}.",
+      alchimia: "{p} usa l'Alchimia e cambia {n} lettere.", alchimiaTutte: "{p} usa l'Alchimia e cambia tutte le lettere.",
+      suggerimento: "{p} chiede un suggerimento (−{n} PV).", passa: "{p} passa il turno.",
+      suggFallito: "Suggerimento non riuscito: {n} PV restituiti.", abbandona: "{p} abbandona la partita. Vince {q}.",
+      tempoScaduto: "Tempo scaduto per {p}: il turno passa.",
+      tempoPerso: "{p} ha lasciato scadere il tempo {n} volte di fila. Vince {q}.",
+      A: "Mago Blu", B: "Mago Rosso", fuoco: "fuoco", gelo: "gelo", acqua: "acqua", terra: "terra"
+    },
+    en: {
+      posaLettera: "Place at least one letter.", fuoriCampo: "Off the board.", occupata: "That square is already taken.",
+      noLettera: "That letter is not in your Grimoire.", rigaColonna: "The letters must be in a single row or column.",
+      continua: "The letters must form one continuous word.", dueLettere: "A word has at least two letters.",
+      noDiz: "{w} is not in the dictionary.", noDizCroce: "It also forms {w}, which is not in the dictionary.",
+      primoTurno: "On your first turn you can only write in your own Sanctum.",
+      ponteMezzo: "In the Midlands the word must connect to your bridge.",
+      serveColl: "To enter the enemy Sanctum you need an active Magic Link.",
+      aggancio: "In the enemy Sanctum you must hook onto one of your opponent's words.",
+      faloAttesa: "The Bonfire can be used once every {n} turns (again in {m}).",
+      faloBersaglio: "For a Bonfire the word must extend or cross a word in the Midlands or in the enemy Sanctum.",
+      faloColl: "To burn in the enemy Sanctum you need an active Magic Link.",
+      soloElementali: "In this game only elemental words can attack.",
+      lancioMisto: "A launched word cannot also be a Bonfire or a defence.",
+      lancioSanctum: "To attack, the word must have a letter in a Sanctum.",
+      noConsacr: "Consecration is not active in this game.", consNeutre: "Only neutral words can be consecrated.",
+      consSanctum: "Only words written entirely in your own Sanctum can be consecrated.",
+      consMax: "You already have {n} active consecrated defences (maximum {m}).",
+      finita: "The game is over.", noTurno: "It is not your turn.", sceltaAlch: "Choose at least one letter to change.",
+      suggPV: "You need more than {n} HP to ask for a hint.",
+      saccaVuota: "The Bag was empty: the Hearth has been reshuffled.", vittoria: "{p} wins!",
+      spengono: "Fading away: {l}.", falo: "{p} unleashes a Great Bonfire with {w}: it burns {l}.",
+      lancio: function (a) {
+        return a.p + " launches " + a.w + " (" + (a.el ? a.el + ", " : "") + "power " + a.n + ")" +
+          (a.d ? ": " + a.d + " damage." : ": the spell fizzles out.") + (a.c ? " The word is consumed." : "");
+      },
+      disintegrato: "{w} is disintegrated.", consacra: "{p} consecrates {w} as a defence (resistance {n}).",
+      bloccato: "{p} writes {w}, but the enemy defences block the launch.",
+      evoca: "{p} summons {w} in the Midlands (Cataclysms are not active yet).",
+      erige: "{p} raises {w} (resistance {n}).", scrive: "{p} writes {w}.",
+      tempesta: "Arcane Storm! The letter {l} is drawn: force {n}.", crollano: "Collapsing: {l}.",
+      alchimia: "{p} uses Alchemy and changes {n} letters.", alchimiaTutte: "{p} uses Alchemy and changes all letters.",
+      suggerimento: "{p} asks for a hint (−{n} HP).", passa: "{p} passes.",
+      suggFallito: "The hint failed: {n} HP refunded.", abbandona: "{p} leaves the game. {q} wins.",
+      tempoScaduto: "Time is up for {p}: the turn passes.",
+      tempoPerso: "{p} let the time run out {n} times in a row. {q} wins.",
+      A: "Blue Wizard", B: "Red Wizard", fuoco: "fire", gelo: "frost", acqua: "water", terra: "earth"
+    }
+  };
+  function setLinguaUI(l) { if (MSG[l]) LINGUA_UI = l; if (api) api.LINGUA_UI = LINGUA_UI; }
+  function tr(k, a, lingua) {
+    var M = MSG[lingua || LINGUA_UI] || MSG.it, t = M[k] !== undefined ? M[k] : MSG.it[k];
+    if (t === undefined) return k;
+    a = a || {};
+    if (typeof t === "function") return t(a);
+    return t.replace(/\{(\w+)\}/g, function (_, x) { var v = a[x]; return Array.isArray(v) ? v.join(", ") : v === undefined ? "" : String(v); });
+  }
+  // voce di cronaca -> testo; nomi = {A, B} facoltativo (i nomi dei giocatori), altrimenti Mago Blu / Mago Rosso
+  function testoLog(m, nomi, lingua) {
+    if (typeof m === "string") return m;
+    var a = {}, src = m.a || {};
+    Object.keys(src).forEach(function (k) { a[k] = src[k]; });
+    ["p", "q"].forEach(function (k) { if (a[k] === "A" || a[k] === "B") a[k] = (nomi && nomi[a[k]]) || tr(a[k], null, lingua); });
+    if (a.el) a.el = tr(a.el, null, lingua);
+    return tr(m.k, a, lingua);
+  }
+  function E(k, a) { return { ok: false, err: tr(k, a) }; }
+
 
   // indice casella -> id parole che la usano
   function cellIndex(words) {
@@ -206,13 +380,13 @@
      Ritorna {ok:false, err} oppure {ok:true, main, type, el, score, base, falo, targets}. */
   function validate(s, p, placed, opts) {
     opts = opts || {};
-    if (!placed.length) return { ok: false, err: "Posa almeno una lettera." };
+    if (!placed.length) return E("posaLettera");
     var hand = s.hands[p].slice();
     for (var i = 0; i < placed.length; i++) {
       var t = placed[i];
-      if (t.r < 0 || t.r >= ROWS || t.c < 0 || t.c >= COLS) return { ok: false, err: "Fuori dal campo." };
-      if (s.tiles[key(t.r, t.c)]) return { ok: false, err: "Casella già occupata." };
-      var hi = hand.indexOf(t.l); if (hi < 0) return { ok: false, err: "Lettera non presente nel Grimorio." };
+      if (t.r < 0 || t.r >= ROWS || t.c < 0 || t.c >= COLS) return E("fuoriCampo");
+      if (s.tiles[key(t.r, t.c)]) return E("occupata");
+      var hi = hand.indexOf(t.l); if (hi < 0) return E("noLettera");
       hand.splice(hi, 1);
     }
     var nk = {}; placed.forEach(function (t) { nk[key(t.r, t.c)] = t.l; });
@@ -225,7 +399,7 @@
     }
     var sameRow = placed.every(function (t) { return t.r === placed[0].r; });
     var sameCol = placed.every(function (t) { return t.c === placed[0].c; });
-    if (!sameRow && !sameCol) return { ok: false, err: "Le lettere vanno in una sola riga o colonna." };
+    if (!sameRow && !sameCol) return E("rigaColonna");
     var dr, dc;
     if (placed.length > 1) { dr = sameCol ? 1 : 0; dc = sameRow ? 1 : 0; }
     else {
@@ -233,36 +407,36 @@
       if (v.cells.length > h.cells.length) { dr = 1; dc = 0; } else { dr = 0; dc = 1; }
     }
     var main = rd(lineAt(get, placed[0].r, placed[0].c, dr, dc), dr === 1);
-    for (var j = 0; j < placed.length; j++) if (main.cells.indexOf(key(placed[j].r, placed[j].c)) < 0) return { ok: false, err: "Le lettere devono formare una parola continua." };
-    if (main.cells.length < 2) return { ok: false, err: "Una parola ha almeno due lettere." };
-    if (!isWord(main.text)) return { ok: false, err: main.text + " non è nel dizionario." };
+    for (var j = 0; j < placed.length; j++) if (main.cells.indexOf(key(placed[j].r, placed[j].c)) < 0) return E("continua");
+    if (main.cells.length < 2) return E("dueLettere");
+    if (!isWord(main.text)) return E("noDiz", { w: main.text });
     for (var x = 0; x < placed.length; x++) {
       var cr = rd(lineAt(get, placed[x].r, placed[x].c, dc, dr), dc === 1);
-      if (cr.cells.length >= 2 && !isWord(cr.text)) return { ok: false, err: "Si forma anche " + cr.text + ", che non è nel dizionario." };
+      if (cr.cells.length >= 2 && !isWord(cr.text)) return E("noDizCroce", { w: cr.text });
     }
 
     var zones = {}; placed.forEach(function (t) { zones[zoneOf(t.r)] = 1; });
     var e = enemy(p);
-    if (s.first[p] && (zones.M || zones[e])) return { ok: false, err: "Al primo turno si scrive solo nel proprio Sanctum." };
+    if (s.first[p] && (zones.M || zones[e])) return E("primoTurno");
 
     var newWord = { id: "_new", o: p, cells: main.cells };
     var hyp = clone(s.words); hyp._new = newWord;
-    if (zones.M && !network(hyp, p)._new) return { ok: false, err: "Nella Terra di Mezzo la parola deve collegarsi al tuo ponte." };
+    if (zones.M && !network(hyp, p)._new) return E("ponteMezzo");
     var active = bridgeActive(s, p);
     if (zones[e]) {
-      if (!active) return { ok: false, err: "Per entrare nel Sanctum nemico serve il Collegamento Magico attivo." };
+      if (!active) return E("serveColl");
       var hooked = Object.keys(s.words).some(function (id) { var w = s.words[id]; return w.o === e && inZone(w, e) && touches(newWord, w); });
-      if (!hooked) return { ok: false, err: "Nel Sanctum nemico devi agganciarti a una parola dell'avversario." };
+      if (!hooked) return E("aggancio");
     }
 
     var targets = [];
     if (opts.falo) {
-      if (CFG.faloOgni && s.turns[p] - s.lastFalo[p] < CFG.faloOgni) return { ok: false, err: "Il Falò si può usare una volta ogni " + CFG.faloOgni + " turni (di nuovo tra " + (CFG.faloOgni - (s.turns[p] - s.lastFalo[p])) + ")." };
+      if (CFG.faloOgni && s.turns[p] - s.lastFalo[p] < CFG.faloOgni) return E("faloAttesa", { n: CFG.faloOgni, m: CFG.faloOgni - (s.turns[p] - s.lastFalo[p]) });
       var idx = cellIndex(s.words), tset = {};
       main.cells.forEach(function (k) { (idx[k] || []).forEach(function (id) { tset[id] = 1; }); });
       targets = Object.keys(tset).filter(function (id) { var w = s.words[id]; return inZone(w, "M") || inZone(w, e); });
-      if (!targets.length) return { ok: false, err: "Per il Falò la parola deve allungare o incrociare una parola nella Terra di Mezzo o nel Sanctum nemico." };
-      if (targets.some(function (id) { return inZone(s.words[id], e); }) && !active) return { ok: false, err: "Per bruciare nel Sanctum nemico serve il Collegamento Magico attivo." };
+      if (!targets.length) return E("faloBersaglio");
+      if (targets.some(function (id) { return inZone(s.words[id], e); }) && !active) return E("faloColl");
     }
 
     var base = 0, score = 0, wmul = 1;
@@ -285,19 +459,19 @@
     var type = opts.falo ? "falo" : cls.type;
     if (type === "attacco" && !launches.length) type = blocked ? "bloccato" : "cataclisma"; // elementale tutta al centro, o bloccata dalle difese
     if (opts.attacca) {
-      if (!CFG.attaccoLibero) return { ok: false, err: "In questa partita attaccano solo le parole elementali." };
-      if (opts.falo || opts.consacra) return { ok: false, err: "Una parola lanciata non può essere anche Falò o difesa." };
-      if (!launches.length) return { ok: false, err: "Per attaccare la parola deve avere una lettera in un Sanctum." };
+      if (!CFG.attaccoLibero) return E("soloElementali");
+      if (opts.falo || opts.consacra) return E("lancioMisto");
+      if (!launches.length) return E("lancioSanctum");
       type = "attacco";
     }
     var consacrata = false;
     if (opts.consacra) {
-      if (!CFG.consacrazione) return { ok: false, err: "La Consacrazione non è attiva in questa partita." };
-      if (cls.type !== "neutra" || opts.falo) return { ok: false, err: "Si consacrano solo parole neutre." };
-      if (!main.cells.every(function (k) { return zoneOf(parse(k)[0]) === p; })) return { ok: false, err: "Si consacrano solo parole scritte tutte nel proprio Sanctum." };
+      if (!CFG.consacrazione) return E("noConsacr");
+      if (cls.type !== "neutra" || opts.falo) return E("consNeutre");
+      if (!main.cells.every(function (k) { return zoneOf(parse(k)[0]) === p; })) return E("consSanctum");
       if (CFG.maxConsacrate) {
         var attive = Object.keys(s.words).filter(function (id) { return s.words[id].o === p && s.words[id].consacrata; }).length;
-        if (attive >= CFG.maxConsacrate) return { ok: false, err: "Hai già " + attive + " difese consacrate attive (massimo " + CFG.maxConsacrate + ")." };
+        if (attive >= CFG.maxConsacrate) return E("consMax", { n: attive, m: CFG.maxConsacrate });
       }
       type = "difesa"; consacrata = true;
     }
@@ -431,7 +605,7 @@
   function endTurn(s, p, rng, rep) {
     s.first[p] = false; s.turns[p]++;
     draw(s, p, rng);
-    if (s.hp[enemy(p)] <= 0) { s.winner = p; addLog(s, "Vittoria del Mago " + (p === "A" ? "Blu" : "Rosso") + "!"); }
+    if (s.hp[enemy(p)] <= 0) { s.winner = p; addLog(s, "vittoria", { p: p }); }
     var e = enemy(p); s.turn = e; s.moveNo++;
     // esaurimento delle parole d'attacco di chi inizia il turno
     var fade = [];
@@ -444,19 +618,19 @@
     if (fade.length) {
       var r2 = { destroyed: [] }; destroy(s, fade, "fade", r2);
       rep.faded = r2.destroyed.map(function (d) { return d.text; });
-      addLog(s, "Si spengono: " + rep.faded.join(", ") + ".");
+      addLog(s, "spengono", { l: rep.faded });
     }
     rep.seq = s.moveNo;
     s.last = rep;
   }
 
-  function name(p) { return p === "A" ? "Mago Blu" : "Mago Rosso"; }
+  function name(p) { return tr(p); }
 
   /* Esegue una mossa completa. Ritorna {ok, err, state}. */
   function play(s0, p, placed, opts, rng) {
     rng = rng || Math.random; opts = opts || {};
-    if (s0.winner) return { ok: false, err: "La partita è finita." };
-    if (s0.turn !== p) return { ok: false, err: "Non è il tuo turno." };
+    if (s0.winner) return E("finita");
+    if (s0.turn !== p) return E("noTurno");
     var v = validate(s0, p, placed, opts);
     if (!v.ok) return v;
     var s = clone(s0);
@@ -467,36 +641,36 @@
     if (v.consacrata) w.consacrata = true;
     s.words[id] = w;
     var rep = { by: p, kind: "parola", word: w.text, type: v.type, el: v.el, score: v.score, cells: v.main.cells.slice(), destroyed: [] };
-    var who = name(p);
     if (v.falo) {
       s.lastFalo[p] = s.turns[p];
       destroy(s, v.targets.concat([id]), "burn", rep);
-      addLog(s, who + " scatena un Grande Falò con " + w.text + ": brucia " + rep.destroyed.filter(function (d) { return d.id !== id; }).map(function (d) { return d.text; }).join(", ") + ".");
+      addLog(s, "falo", { p: p, w: w.text, l: rep.destroyed.filter(function (d) { return d.id !== id; }).map(function (d) { return d.text; }) });
     } else if (v.type === "attacco") {
       var lk = opts.launch && v.launches.indexOf(opts.launch) >= 0 ? opts.launch : v.launches[0];
       cast(s, p, w, lk, rep);
-      var msg = who + " lancia " + w.text + " (" + (v.el ? v.el + ", " : "") + "potenza " + v.score + ")";
-      msg += rep.damage ? ": " + rep.damage + " danni." : ": l'incantesimo si dissolve.";
-      if (CFG.attaccoConsuma) msg += " La parola si consuma.";
-      addLog(s, msg);
-      rep.destroyed.forEach(function (d) { addLog(s, d.text + " viene disintegrato."); });
+      var la = { p: p, w: w.text, n: v.score };
+      if (v.el) la.el = v.el;
+      if (rep.damage) la.d = rep.damage;
+      if (CFG.attaccoConsuma) la.c = 1;
+      addLog(s, "lancio", la);
+      rep.destroyed.forEach(function (d) { addLog(s, "disintegrato", { w: d.text }); });
       if (CFG.attaccoConsuma && s.words[id]) { destroy(s, [id], "consumo", rep); rep.consumed = true; }
     } else if (v.type === "difesa" && v.consacrata) {
-      addLog(s, who + " consacra " + w.text + " come difesa (resistenza " + w.stab + ").");
+      addLog(s, "consacra", { p: p, w: w.text, n: w.stab });
     } else if (v.type === "bloccato") {
-      addLog(s, who + " scrive " + w.text + ", ma le difese nemiche impediscono il lancio.");
+      addLog(s, "bloccato", { p: p, w: w.text });
     } else if (v.type === "cataclisma") {
-      addLog(s, who + " evoca " + w.text + " nella Terra di Mezzo (i Cataclismi non sono ancora attivi).");
+      addLog(s, "evoca", { p: p, w: w.text });
     } else if (v.type === "difesa") {
-      addLog(s, who + " erige " + w.text + " (resistenza " + w.stab + ").");
+      addLog(s, "erige", { p: p, w: w.text, n: w.stab });
     } else {
-      addLog(s, who + " scrive " + w.text + ".");
+      addLog(s, "scrive", { p: p, w: w.text });
     }
     storm(s, rep, rng);
     if (rep.storm) {
-      addLog(s, "Tempesta Arcana! Estratta la " + rep.storm.letter + ": forza " + rep.storm.force + ".");
+      addLog(s, "tempesta", { l: rep.storm.letter, n: rep.storm.force });
       var crolli = rep.destroyed.filter(function (d) { return d.mode === "crollo"; }).map(function (d) { return d.text; });
-      if (crolli.length) addLog(s, "Crollano: " + crolli.join(", ") + ".");
+      if (crolli.length) addLog(s, "crollano", { l: crolli });
     }
     endTurn(s, p, rng, rep);
     return { ok: true, state: s, report: rep };
@@ -505,37 +679,37 @@
   // letters: lettere da cambiare (tutte se omesso)
   function alchimia(s0, p, rng, letters) {
     rng = rng || Math.random;
-    if (s0.turn !== p || s0.winner) return { ok: false, err: "Non è il tuo turno." };
+    if (s0.turn !== p || s0.winner) return E("noTurno");
     var s = clone(s0), out = [];
     if (!letters) { out = s.hands[p]; s.hands[p] = []; }
     else for (var i = 0; i < letters.length; i++) {
       var j = s.hands[p].indexOf(letters[i]);
-      if (j < 0) return { ok: false, err: "Lettera non presente nel Grimorio." };
+      if (j < 0) return E("noLettera");
       out.push(s.hands[p].splice(j, 1)[0]);
     }
-    if (!out.length) return { ok: false, err: "Scegli almeno una lettera da cambiare." };
+    if (!out.length) return E("sceltaAlch");
     draw(s, p, rng);
     s.focolare = s.focolare.concat(out);
-    addLog(s, name(p) + " usa l'Alchimia e cambia " + (letters ? out.length + " lettere." : "tutte le lettere."));
+    if (letters) addLog(s, "alchimia", { p: p, n: out.length }); else addLog(s, "alchimiaTutte", { p: p });
     endTurn(s, p, rng, { by: p, kind: "alchimia", destroyed: [] });
     return { ok: true, state: s };
   }
   // Suggerimento: costa PV (CFG.costoSuggerimento, 3 se assente) e resta nella cronaca; il turno non passa
   function suggerisci(s0, p) {
-    if (s0.winner) return { ok: false, err: "La partita è finita." };
-    if (s0.turn !== p) return { ok: false, err: "Non è il tuo turno." };
+    if (s0.winner) return E("finita");
+    if (s0.turn !== p) return E("noTurno");
     var costo = CFG.costoSuggerimento || 3;
-    if (s0.hp[p] <= costo) return { ok: false, err: "Ti servono più di " + costo + " PV per chiedere un suggerimento." };
+    if (s0.hp[p] <= costo) return E("suggPV", { n: costo });
     var s = clone(s0);
     s.hp[p] -= costo;
     s.suggerimenti = s.suggerimenti || { A: 0, B: 0 }; s.suggerimenti[p]++;
-    addLog(s, name(p) + " chiede un suggerimento (−" + costo + " PV).");
+    addLog(s, "suggerimento", { p: p, n: costo });
     return { ok: true, state: s, costo: costo };
   }
   function pass(s0, p, rng) {
-    if (s0.turn !== p || s0.winner) return { ok: false, err: "Non è il tuo turno." };
+    if (s0.turn !== p || s0.winner) return E("noTurno");
     var s = clone(s0);
-    addLog(s, name(p) + " passa il turno.");
+    addLog(s, "passa", { p: p });
     endTurn(s, p, rng || Math.random, { by: p, kind: "passa", destroyed: [] });
     return { ok: true, state: s };
   }
@@ -556,7 +730,8 @@
   }
 
   api = {
-    COLS: COLS, ROWS: ROWS, STAFFA: STAFFA, VAL: VAL, BAG: BAG, MULT: MULT, CFG: CFG, LESSICO: LESSICO, RADICI: RADICI,
+    tr: tr, testoLog: testoLog, setLinguaUI: setLinguaUI, LINGUA_UI: LINGUA_UI, MSG: MSG,
+    COLS: COLS, ROWS: ROWS, STAFFA: STAFFA, VAL: VAL, BAG: BAG, LINGUE: LINGUE, dizionariDi: dizionariDi, sacca: sacca, unisciTesti: unisciTesti, MULT: MULT, CFG: CFG, LESSICO: LESSICO, RADICI: RADICI,
     setDict: setDict, isWord: isWord, classify: classify, key: key, parse: parse, zoneOf: zoneOf, enemy: enemy,
     newGame: newGame, applyCfg: applyCfg, PRESETS: PRESETS, RADICI_LUNGHE: RADICI_LUNGHE, validate: validate, play: play, alchimia: alchimia, pass: pass, suggerisci: suggerisci,
     bridgeActive: bridgeActive, protectedCols: protectedCols, network: network, cellIndex: cellIndex, previewLaunches: previewLaunches, name: name

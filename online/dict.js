@@ -2,8 +2,9 @@
 "use strict";
 const fs = require("fs");
 
-function loadDict(file) {
-  const text = fs.readFileSync(file, "utf8").replace(/\r/g, "").trim();
+function loadDict(file) { return fromText(fs.readFileSync(file, "utf8")); }
+function fromText(t) {
+  const text = t.replace(/\r/g, "").trim();
   const offs = [0];
   for (let i = 0; i < text.length; i++) if (text.charCodeAt(i) === 10) offs.push(i + 1);
   const o = Uint32Array.from(offs), n = o.length;
@@ -17,4 +18,4 @@ function loadDict(file) {
     }
   };
 }
-module.exports = { loadDict };
+module.exports = { loadDict, fromText };

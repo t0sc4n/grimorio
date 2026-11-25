@@ -39,7 +39,7 @@ p { margin: 0; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .grow { flex: 1 1 auto; min-width: 0; }
-label.field { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
+label.field, div.field { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
 input[type=text], select {
   min-height: 42px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text);
   padding: 0 12px; font: 500 16px var(--font-body);
@@ -168,6 +168,10 @@ button.dz-w:focus-visible { outline: 2px solid var(--oro); outline-offset: 2px; 
 .dz-w.fuoco { border-color: var(--fuoco); } .dz-w.gelo { border-color: var(--gelo); } .dz-w.acqua { border-color: var(--acqua); } .dz-w.difesa { border-color: var(--terra); }
 .dz-key { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 .dz-key span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; border: 2px solid var(--c); vertical-align: -1px; }
+.dzsel { display: flex; gap: 6px 18px; flex-wrap: wrap; margin-top: 6px; }
+.dzsel .check { margin: 0; color: var(--text); }
+.langsw { display: flex; gap: 6px; justify-content: flex-end; }
+.langsw .btn.on { border-color: var(--oro); color: var(--oro); background: transparent; }
 .winner { text-align: center; font: 700 24px var(--font-display); color: var(--oro); }
 @media (prefers-reduced-motion: reduce) { .cell.launch { animation: none; } .htile, .hp > i { transition: none; } }
 </style>

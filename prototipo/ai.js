@@ -3,18 +3,34 @@
    {kind:"play", placed, opts} | {kind:"alchimia", letters} | {kind:"pass"} */
 importScripts("engine.js");
 const G = self.Grimorio;
-let TEXT = null, OFFS = null, N = 0, loading = null;
+// un dizionario per lingua della partita; TEXT / OFFS / N sono quelli della partita in corso
+const FILE_DIZ = { it: "parole.txt", en: "words-en.txt" };
+const DIZ = {};
+let TEXT = null, OFFS = null, N = 0;
 
-function loadDict() {
-  if (loading) return loading;
-  loading = fetch("parole.txt").then(r => { if (!r.ok) throw new Error("dizionario " + r.status); return r.text(); }).then(t => {
-    TEXT = t.replace(/\r/g, "").trim();
-    const o = [0];
-    for (let i = 0; i < TEXT.length; i++) if (TEXT.charCodeAt(i) === 10) o.push(i + 1);
-    OFFS = Uint32Array.from(o); N = OFFS.length;
-    G.setDict({ has: w => { let lo = 0, hi = N - 1; while (lo <= hi) { const m = (lo + hi) >> 1, x = line(m); if (x === w) return true; if (x < w) lo = m + 1; else hi = m - 1; } return false; } });
+function loadDict(l) {
+  if (DIZ[l]) return DIZ[l].loading;
+  const d = DIZ[l] = {};
+  d.loading = fetch(FILE_DIZ[l]).then(r => { if (!r.ok) throw new Error("dizionario " + r.status); return r.text(); }).then(t => {
+    const text = t.replace(/\r/g, "").trim(), o = [0];
+    for (let i = 0; i < text.length; i++) if (text.charCodeAt(i) === 10) o.push(i + 1);
+    const offs = Uint32Array.from(o), n = offs.length;
+    const riga = i => text.slice(offs[i], i + 1 < n ? offs[i + 1] - 1 : text.length);
+    Object.assign(d, { text, offs, n });
+    G.setDict({ has: w => { let lo = 0, hi = n - 1; while (lo <= hi) { const m = (lo + hi) >> 1, x = riga(m); if (x === w) return true; if (x < w) lo = m + 1; else hi = m - 1; } return false; } }, l);
   });
-  return loading;
+  return d.loading;
+}
+// con più dizionari le parole candidate vengono dal loro testo unito (ordinato, senza doppioni)
+const UNITI = {};
+function usaDict(ls) {
+  let d = ls.length === 1 ? DIZ[ls[0]] : UNITI[ls.join("+")];
+  if (!d) {
+    const text = G.unisciTesti(ls.map(l => DIZ[l].text)), o = [0];
+    for (let i = 0; i < text.length; i++) if (text.charCodeAt(i) === 10) o.push(i + 1);
+    d = UNITI[ls.join("+")] = { text, offs: Uint32Array.from(o), n: o.length };
+  }
+  TEXT = d.text; OFFS = d.offs; N = d.n;
 }
 function lineEnd(i) { return i + 1 < N ? OFFS[i + 1] - 1 : TEXT.length; }
 function line(i) { return TEXT.slice(OFFS[i], lineEnd(i)); }
@@ -37,7 +53,7 @@ function candidates(s, p) {
     for (let x = a; x < j; x++) used[TEXT.charCodeAt(x) - 65] = 0;
     if (ok) out.push(TEXT.slice(a, b));
   }
-  for (const el in G.LESSICO) for (const w of G.LESSICO[el].split(" ")) if (!G.isWord(w) || out.indexOf(w) < 0) {
+  if (G.CFG.lingua === "it") for (const el in G.LESSICO) for (const w of G.LESSICO[el].split(" ")) if (!G.isWord(w) || out.indexOf(w) < 0) {
     const cnt = {}; let def = 0, ok = true;
     for (const ch of w) cnt[ch] = (cnt[ch] || 0) + 1;
     for (const ch in cnt) { const need = cnt[ch] - s.hands[p].filter(x => x === ch).length; if (need > 0) { const onb = Object.values(s.tiles).filter(t => t.l === ch).length; if (onb < need) ok = false; def += need; } }
@@ -134,8 +150,10 @@ function choose(s, p, level) {
 self.onmessage = async e => {
   const { state, seat, level } = e.data;
   try {
-    await loadDict();
+    const ls = G.dizionariDi(state.cfg || {});
+    await Promise.all(ls.map(loadDict));
     G.applyCfg(state.cfg || {});
+    usaDict(ls);
     self.postMessage(choose(state, seat, level));
   } catch (err) {
     self.postMessage({ kind: "errore", message: String(err && err.message || err) });

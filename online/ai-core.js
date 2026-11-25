@@ -24,7 +24,7 @@ function createAI(G, dict) {
       for (let x = a; x < j; x++) used[TEXT.charCodeAt(x) - 65] = 0;
       if (ok) out.add(TEXT.slice(a, b));
     }
-    for (const el in G.LESSICO) for (const w of G.LESSICO[el].split(" ")) {
+    if (G.CFG.lingua === "it") for (const el in G.LESSICO) for (const w of G.LESSICO[el].split(" ")) {
       const cnt = new Int16Array(26); let def = 0, ok = true;
       for (const ch of w) {
         const c = ch.charCodeAt(0) - 65; cnt[c]++;

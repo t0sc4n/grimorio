@@ -1,11 +1,16 @@
 # Pagina online: script in un file separato (per la Content-Security-Policy), font locali, scollegamento dispositivi.
 import sys, re, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from lingua_comune import avvolgi, chiavi
 pub = sys.argv[1]
 p = os.path.join(pub, "index.html")
 s = open(p, encoding="utf-8").read()
+K = chiavi(s)
 
 def rep(a, b):
+    # i testi fissi sono tr("...") (vedi lingua_comune.py)
     global s
+    a, b = avvolgi(a, K), avvolgi(b, K)
     assert s.count(a) == 1, (a[:90], s.count(a))
     s = s.replace(a, b)
 

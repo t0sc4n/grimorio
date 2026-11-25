@@ -25,8 +25,10 @@ const MAX_TIMEOUTS = 2; // turni scaduti di fila che fanno perdere la partita
 fs.mkdirSync(DATA, { recursive: true });
 
 // ---------- dizionario (il giocatore automatico vive in ai-worker.js) ----------
+// un dizionario per lingua della partita
 const dict = loadDict(path.join(PUBLIC, "parole.txt"));
-G.setDict(dict);
+G.setDict(dict, "it");
+G.setDict(loadDict(path.join(PUBLIC, "words-en.txt")), "en");
 
 // ---------- archivio ----------
 const db = new DatabaseSync(path.join(DATA, "grimorio.db"));
@@ -38,10 +40,13 @@ CREATE INDEX IF NOT EXISTS games_a ON games(a);
 CREATE INDEX IF NOT EXISTS games_b ON games(b);
 CREATE TABLE IF NOT EXISTS subs (endpoint TEXT PRIMARY KEY, player TEXT NOT NULL, json TEXT NOT NULL, created INTEGER NOT NULL);
 `);
+// lingua dell'interfaccia di ogni giocatore (per le notifiche): colonna aggiunta con l'inglese
+if (!db.prepare("PRAGMA table_info(players)").all().some(c => c.name === "lingua")) db.exec("ALTER TABLE players ADD COLUMN lingua TEXT NOT NULL DEFAULT 'it'");
 const Q = {
   addPlayer: db.prepare("INSERT INTO players (id, secret, name, created) VALUES (?, ?, ?, ?)"),
   getPlayer: db.prepare("SELECT * FROM players WHERE id = ?"),
   setName: db.prepare("UPDATE players SET name = ? WHERE id = ?"),
+  setLingua: db.prepare("UPDATE players SET lingua = ? WHERE id = ?"),
   setSecret: db.prepare("UPDATE players SET secret = ? WHERE id = ?"),
   activeOf: db.prepare("SELECT state FROM games WHERE (a = ? OR b = ? OR (a = ? AND b IS NULL)) AND json_extract(state, '$.winner') IS NULL"),
   countSubs: db.prepare("SELECT endpoint FROM subs WHERE player = ? ORDER BY created ASC"),
@@ -103,7 +108,57 @@ function rid(n) { let s = ""; for (const x of crypto.randomBytes(n)) s += ALFA[x
 function secretToken() { return crypto.randomBytes(24).toString("hex"); }
 const sha = s => crypto.createHash("sha256").update(s).digest("hex");
 const rng = () => crypto.randomInt(0, 2 ** 32) / 2 ** 32;
-function fail(status, message) { const e = new Error(message); e.status = status; return e; }
+function fail(status, message, a) { const e = new Error(message); e.status = status; e.a = a; return e; }
+// ---------- lingue: messaggi del server in italiano (chiave) e inglese ----------
+const SRV_EN = {
+  "Il suggeritore è occupato: riprova tra poco.": "The hint helper is busy: try again shortly.",
+  "Mossa non valida.": "Invalid move.",
+  "Partita non trovata.": "Game not found.",
+  "La partita è finita.": "The game is over.",
+  "Non giochi in questa partita.": "You are not playing in this game.",
+  "Non è il tuo turno.": "It is not your turn.",
+  "Aspetta che arrivi lo sfidante.": "Wait for the challenger to arrive.",
+  "La partita è cambiata nel frattempo: la ricarico.": "The game changed in the meantime: reloading it.",
+  "Mossa sconosciuta.": "Unknown move.",
+  "Richiesta troppo grande.": "Request too large.",
+  "Richiesta non valida.": "Invalid request.",
+  "Troppe richieste: rallenta un attimo e riprova.": "Too many requests: slow down a moment and try again.",
+  "Accesso non valido: ricarica la pagina.": "Invalid access: reload the page.",
+  "Troppe registrazioni da questa rete: riprova più tardi.": "Too many sign-ups from this network: try again later.",
+  "Iscrizione non valida.": "Invalid subscription.",
+  "Servizio di notifica non riconosciuto.": "Unrecognised notification service.",
+  "Hai già {n} partite in corso: finiscine o abbandonane qualcuna.": "You already have {n} games in progress: finish or leave some of them.",
+  "Hai già {n} partite in corso contro il computer.": "You already have {n} games in progress against the computer.",
+  "Hai creato molte partite nell'ultima ora: riprova più tardi.": "You have created many games in the last hour: try again later.",
+  "Questa partita ha già due giocatori.": "This game already has two players.",
+  "Troppe mosse in poco tempo: rallenta un attimo.": "Too many moves in a short time: slow down a moment.",
+  "Troppi suggerimenti in poco tempo: aspetta un attimo.": "Too many hints in a short time: wait a moment.",
+  "La partita è già finita.": "The game is already over.",
+  "Puoi togliere dall'elenco solo le partite finite.": "You can only remove finished games from the list.",
+  "Indirizzo sconosciuto.": "Unknown address.",
+  "Errore del server.": "Server error.",
+  "il suggeritore non ha risposto, i PV ti sono stati restituiti": "the hint helper did not respond, your HP have been refunded",
+  "Hai vinto contro {n}!": "You won against {n}!",
+  "{n} ha vinto la partita.": "{n} won the game.",
+  "Tocca a te contro {n}.": "Your turn against {n}.",
+  "{n} ha accettato la sfida. Tocca a te!": "{n} accepted the challenge. Your turn!",
+  "Tempo scaduto contro {n}: hai perso il turno. Se scade di nuovo, perdi la partita.": "Time ran out against {n}: you lost your turn. If it runs out again, you lose the game.",
+  "Ti restano {t} per giocare contro {n}, poi il turno passa.": "You have {t} left to play against {n}, then the turn passes.",
+  "{n} ora": "{n} hour",
+  "{n} ore": "{n} hours",
+  "{n} minuti": "{n} minutes",
+  "Mago Blu": "Blue Wizard",
+  "Mago Rosso": "Red Wizard",
+  "Automa": "Automaton",
+  "Automa (facile)": "Automaton (easy)"
+};
+function trS(msg, l, a) {
+  let x = l === "en" && SRV_EN[msg] !== undefined ? SRV_EN[msg] : msg;
+  if (a) x = x.replace(/\{(\w+)\}/g, (_, k) => a[k] === undefined ? "" : String(a[k]));
+  return x;
+}
+function linguaReq(req) { return req.headers["x-lingua"] === "en" ? "en" : "it"; }
+function linguaOf(pid) { const p = Q.getPlayer.get(pid); return p && p.lingua === "en" ? "en" : "it"; }
 function cleanName(n) { return String(n || "").normalize("NFC").replace(/[\u0000-\u001f\u007f-\u009f<>\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g, "").replace(/\s+/g, " ").trim().slice(0, 24); }
 const clone = o => JSON.parse(JSON.stringify(o));
 
@@ -144,24 +199,29 @@ function broadcast(id, s, updated) {
 // il giocatore sta guardando questa partita adesso? allora niente notifica
 function isLooking(pid, id) { for (const ws of socketsOf.get(pid) || []) if (ws.visible && ws.watching.has(id)) return true; return false; }
 function pushTo(pid, payload) {
+  if (typeof payload.body === "function") payload = Object.assign({}, payload, { body: payload.body(linguaOf(pid)) });
   for (const row of Q.subsOf.all(pid)) {
     webpush.sendNotification(JSON.parse(row.json), JSON.stringify(payload), { TTL: 86400 })
       .catch(e => { if (e.statusCode === 404 || e.statusCode === 410) Q.delSub.run(row.endpoint); });
   }
 }
-function nameOf(s, p) { return (s.seats[p] && s.seats[p].nome) || (p === "A" ? "Mago Blu" : "Mago Rosso"); }
+function nameOf(s, p, l) {
+  const x = s.seats[p];
+  if (x && x.cpu) return trS(x.livello === "facile" ? "Automa (facile)" : "Automa", l);
+  return (x && x.nome) || trS(p === "A" ? "Mago Blu" : "Mago Rosso", l);
+}
 function notifyAfterMove(id, s) {
   const url = "/#g=" + id;
   if (s.winner) {
     for (const p of ["A", "B"]) {
       const t = s.seats[p]; if (!t || t.cpu || isLooking(t.tok, id)) continue;
-      pushTo(t.tok, { title: "Grimorio", body: s.winner === p ? "Hai vinto contro " + nameOf(s, G.enemy(p)) + "!" : nameOf(s, s.winner) + " ha vinto la partita.", url, tag: id });
+      pushTo(t.tok, { title: "Grimorio", body: l => s.winner === p ? trS("Hai vinto contro {n}!", l, { n: nameOf(s, G.enemy(p), l) }) : trS("{n} ha vinto la partita.", l, { n: nameOf(s, s.winner, l) }), url, tag: id });
     }
     return;
   }
   const t = s.seats[s.turn], other = s.seats[G.enemy(s.turn)];
   if (!t || t.cpu || (other && other.tok === t.tok) || isLooking(t.tok, id)) return;
-  pushTo(t.tok, { title: "Grimorio", body: "Tocca a te contro " + nameOf(s, G.enemy(s.turn)) + ".", url, tag: id });
+  pushTo(t.tok, { title: "Grimorio", body: l => trS("Tocca a te contro {n}.", l, { n: nameOf(s, G.enemy(s.turn), l) }), url, tag: id });
 }
 // l'orologio corre solo tra due persone diverse; riparte a ogni nuovo turno
 function setClock(s) {
@@ -317,7 +377,7 @@ function serveStatic(req, res, urlPath) {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" }); return res.end("Non trovato"); }
     const ext = path.extname(file);
-    const cache = ext === ".html" || rel === "/sw.js" || ext === ".webmanifest" ? "no-cache" : rel === "/parole.txt" ? "public, max-age=604800" : "public, max-age=3600";
+    const cache = ext === ".html" || rel === "/sw.js" || ext === ".webmanifest" ? "no-cache" : (rel === "/parole.txt" || rel === "/words-en.txt") ? "public, max-age=604800" : "public, max-age=3600";
     res.writeHead(200, Object.assign(securityHeaders(req), { "Content-Type": MIME[ext] || "application/octet-stream", "Content-Length": st.size, "Cache-Control": cache }));
     if (req.method === "HEAD") return res.end();
     fs.createReadStream(file).pipe(res);
@@ -332,7 +392,8 @@ function clientIp(req) {
 
 async function api(req, res, parts) {
   if (!hit("api:" + clientIp(req), LIMITS.apiPerIpPerMin, 60e3)) throw fail(429, "Troppe richieste: rallenta un attimo e riprova.");
-  const method = req.method, me = authReq(req);
+  const method = req.method, me = authReq(req), L = linguaReq(req);
+  if (me && me.lingua !== L) { Q.setLingua.run(L, me.id); me.lingua = L; }
   const needMe = () => { if (!me) throw fail(401, "Accesso non valido: ricarica la pagina."); return me; };
 
   if (parts[0] === "players" && method === "POST" && parts.length === 1) {
@@ -341,6 +402,7 @@ async function api(req, res, parts) {
     const body = await readBody(req);
     const id = rid(12), secret = secretToken(), name = cleanName(body.name) || "Mago";
     Q.addPlayer.run(id, sha(secret), name, now);
+    if (L !== "it") Q.setLingua.run(L, id);
     return sendJson(res, 201, { id, token: id + "." + secret, name });
   }
   if (parts[0] === "me") {
@@ -378,14 +440,16 @@ async function api(req, res, parts) {
       const p = needMe(), body = await readBody(req);
       const cpu = body.vs === "facile" || body.vs === "normale";
       const active = Q.activeOf.all(p.id, p.id, p.id).map(r => JSON.parse(r.state));
-      if (active.length >= LIMITS.activeGamesPerPlayer) throw fail(429, "Hai già " + active.length + " partite in corso: finiscine o abbandonane qualcuna.");
-      if (cpu && active.filter(s => s.seats.B && s.seats.B.cpu).length >= LIMITS.activeCpuGamesPerPlayer) throw fail(429, "Hai già " + LIMITS.activeCpuGamesPerPlayer + " partite in corso contro il computer.");
+      if (active.length >= LIMITS.activeGamesPerPlayer) throw fail(429, "Hai già {n} partite in corso: finiscine o abbandonane qualcuna.", { n: active.length });
+      if (cpu && active.filter(s => s.seats.B && s.seats.B.cpu).length >= LIMITS.activeCpuGamesPerPlayer) throw fail(429, "Hai già {n} partite in corso contro il computer.", { n: LIMITS.activeCpuGamesPerPlayer });
       if (!hit("games:" + p.id, LIMITS.gamesPerPlayerPerHour, 3600e3)) throw fail(429, "Hai creato molte partite nell'ultima ora: riprova più tardi.");
-      // regole: s1 (semplificate, predefinite) oppure v5f (classiche, con lessico)
-      const regole = body.regole === "v5f" ? "v5f" : "s1";
+      // dizionari: uno o più tra quelli noti (le richieste di prima mandano "lingua"); regole: s1 (predefinite)
+      // oppure v5f (classiche, con lessico: solo con il solo dizionario italiano)
+      const dizionari = G.dizionariDi({ dizionari: Array.isArray(body.dizionari) ? body.dizionari.slice(0, 8).map(String) : [body.lingua] });
+      const regole = dizionari.join() === "it" && body.regole === "v5f" ? "v5f" : "s1";
       const pvOk = regole === "s1" ? [40, 60, 80] : [20, 25, 30], pvDef = regole === "s1" ? 60 : 30;
       const hp = pvOk.includes(+body.hp) ? +body.hp : pvDef;
-      G.applyCfg(Object.assign({}, G.PRESETS[regole], { hp }));
+      G.applyCfg(Object.assign({}, G.PRESETS[regole], { hp, dizionari }));
       const s = G.newGame(rng);
       s.seats.A = { tok: p.id, nome: p.name };
       if (cpu) s.seats.B = { tok: "cpu", nome: "Automa" + (body.vs === "facile" ? " (facile)" : ""), cpu: true, livello: body.vs };
@@ -407,13 +471,13 @@ async function api(req, res, parts) {
       if (s.seats.B) throw fail(409, "Questa partita ha già due giocatori.");
       s.seats.B = { tok: p.id, nome: p.name };
       const updated = commitState(id, s, true);
-      if (s.seats.A && !isLooking(s.seats.A.tok, id)) pushTo(s.seats.A.tok, { title: "Grimorio", body: p.name + " ha accettato la sfida. Tocca a te!", url: "/#g=" + id, tag: id });
+      if (s.seats.A && !isLooking(s.seats.A.tok, id)) pushTo(s.seats.A.tok, { title: "Grimorio", body: l => trS("{n} ha accettato la sfida. Tocca a te!", l, { n: p.name }), url: "/#g=" + id, tag: id });
       return sendJson(res, 200, { id, s: viewFor(s, p.id), updated });
     }
     if (parts[2] === "move" && method === "POST") {
       const p = needMe();
       if (!hit("move:" + p.id, LIMITS.movesPerPlayerPerMin, 60e3)) throw fail(429, "Troppe mosse in poco tempo: rallenta un attimo.");
-      const body = await readBody(req); return sendJson(res, 200, doMove(id, p, body));
+      const body = await readBody(req); G.setLinguaUI(L); return sendJson(res, 200, doMove(id, p, body));
     }
     if (parts[2] === "suggest" && method === "POST") {
       const p = needMe();
@@ -427,16 +491,17 @@ async function api(req, res, parts) {
       if (seat !== s.turn) throw fail(409, "Non è il tuo turno.");
       if (!s.seats[G.enemy(seat)]) throw fail(409, "Aspetta che arrivi lo sfidante.");
       if (body.moveNo !== s.moveNo) throw fail(409, "La partita è cambiata nel frattempo: la ricarico.");
+      G.setLinguaUI(L);
       const r = G.suggerisci(s, seat); if (!r.ok) throw fail(422, r.err);
       let updated = commitState(id, r.state, true), hint, state = r.state;
       try { hint = await askAi(id, JSON.parse(JSON.stringify(r.state)), seat); }
       catch (e) {
         // il suggerimento non è arrivato: si restituiscono i PV, se la partita non è andata avanti
-        hint = { kind: "errore", message: "il suggeritore non ha risposto, i PV ti sono stati restituiti" };
+        hint = { kind: "errore", message: trS("il suggeritore non ha risposto, i PV ti sono stati restituiti", L) };
         const g2 = loadGame(id);
         if (g2 && g2.s.moveNo === r.state.moveNo && !g2.s.winner) {
           G.applyCfg(g2.s.cfg || BASE_RULES);
-          g2.s.hp[seat] += r.costo; g2.s.log.push("Suggerimento non riuscito: " + r.costo + " PV restituiti.");
+          g2.s.hp[seat] += r.costo; g2.s.log.push({ k: "suggFallito", a: { n: r.costo } });
           state = g2.s; updated = commitState(id, g2.s, true);
         }
       }
@@ -448,7 +513,7 @@ async function api(req, res, parts) {
       if (!s.seats.B || s.seats.A.tok === s.seats.B.tok) { Q.delGame.run(id); return sendJson(res, 200, { deleted: true }); }
       if (s.winner) throw fail(409, "La partita è già finita.");
       s.winner = G.enemy(seat);
-      s.log.push(nameOf(s, seat) + " abbandona la partita. Vince " + nameOf(s, s.winner) + ".");
+      s.log.push({ k: "abbandona", a: { p: seat, q: s.winner } });
       const updated = commitState(id, s);
       return sendJson(res, 200, { id, s: viewFor(s, p.id), updated });
     }
@@ -470,7 +535,8 @@ const server = http.createServer(async (req, res) => {
     serveStatic(req, res, url.pathname);
   } catch (e) {
     if (!e.status) console.error(e);
-    sendJson(res, e.status || 500, { error: e.status ? e.message : "Errore del server." });
+    const l = linguaReq(req);
+    sendJson(res, e.status || 500, { error: e.status ? trS(e.message, l, e.a) : trS("Errore del server.", l) });
   }
 });
 
@@ -520,7 +586,7 @@ startAiWorker();
 for (const row of Q.allGames.all()) { try { const s = JSON.parse(row.state); scheduleCpu(row.id, s); } catch (e) {} }
 
 // ---------- tempo per turno ----------
-function fmtHours(ms) { const h = Math.round(ms / 3600e3); return h >= 1 ? h + (h === 1 ? " ora" : " ore") : Math.max(1, Math.round(ms / 60e3)) + " minuti"; }
+function fmtHours(ms, l) { const h = Math.round(ms / 3600e3); return h >= 1 ? trS(h === 1 ? "{n} ora" : "{n} ore", l, { n: h }) : trS("{n} minuti", l, { n: Math.max(1, Math.round(ms / 60e3)) }); }
 function checkClocks() {
   const now = Date.now();
   try {
@@ -528,16 +594,16 @@ function checkClocks() {
       const g = loadGame(id); if (!g) continue;
       const s = g.s; if (s.winner || !s.deadline || s.deadline > now) continue;
       G.applyCfg(s.cfg || BASE_RULES);
-      const seat = s.turn, who = nameOf(s, seat), url = "/#g=" + id;
+      const seat = s.turn, url = "/#g=" + id;
       const r = G.pass(s, seat, rng); if (!r.ok) continue;
       const t = r.state;
       t.timeouts = t.timeouts || { A: 0, B: 0 };
       t.timeouts[seat] = (t.timeouts[seat] || 0) + 1;
-      t.log[t.log.length - 1] = "Tempo scaduto per " + who + ": il turno passa.";
+      t.log[t.log.length - 1] = { k: "tempoScaduto", a: { p: seat } };
       if (t.timeouts[seat] >= MAX_TIMEOUTS) {
         t.winner = G.enemy(seat);
-        t.log.push(who + " ha lasciato scadere il tempo " + MAX_TIMEOUTS + " volte di fila. Vince " + nameOf(t, t.winner) + ".");
-      } else pushTo(s.seats[seat].tok, { title: "Grimorio", body: "Tempo scaduto contro " + nameOf(s, G.enemy(seat)) + ": hai perso il turno. Se scade di nuovo, perdi la partita.", url, tag: id + "-t" });
+        t.log.push({ k: "tempoPerso", a: { p: seat, n: MAX_TIMEOUTS, q: t.winner } });
+      } else pushTo(s.seats[seat].tok, { title: "Grimorio", body: l => trS("Tempo scaduto contro {n}: hai perso il turno. Se scade di nuovo, perdi la partita.", l, { n: nameOf(s, G.enemy(seat), l) }), url, tag: id + "-t" });
       commitState(id, t);
     }
     for (const { id } of Q.toRemind.all(now + REMIND_MS)) {
@@ -545,7 +611,7 @@ function checkClocks() {
       const s = g.s; if (s.winner || !s.deadline || s.reminded) continue;
       s.reminded = true; Q.setState.run(JSON.stringify(s), id);
       const t = s.seats[s.turn];
-      if (t && !t.cpu && !isLooking(t.tok, id)) pushTo(t.tok, { title: "Grimorio", body: "Ti restano " + fmtHours(s.deadline - now) + " per giocare contro " + nameOf(s, G.enemy(s.turn)) + ", poi il turno passa.", url: "/#g=" + id, tag: id });
+      if (t && !t.cpu && !isLooking(t.tok, id)) pushTo(t.tok, { title: "Grimorio", body: l => trS("Ti restano {t} per giocare contro {n}, poi il turno passa.", l, { t: fmtHours(s.deadline - now, l), n: nameOf(s, G.enemy(s.turn), l) }), url: "/#g=" + id, tag: id });
     }
   } catch (e) { console.error("controllo dei tempi non riuscito", e); }
 }

@@ -1,5 +1,5 @@
 // Grimorio — service worker: app disponibile anche con rete lenta, notifiche "Tocca a te".
-const CACHE = "grimorio-v10";
+const CACHE = "grimorio-v11";
 const SHELL = ["/", "/index.html", "/app.js", "/fonts.css", "/engine.js", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", e => {
@@ -18,7 +18,7 @@ self.addEventListener("fetch", e => {
   }
   // dizionario, icone, font: prima la copia salvata
   e.respondWith(caches.match(e.request).then(hit => hit || fetch(e.request).then(r => {
-    if (r.ok && (url.pathname === "/parole.txt" || url.pathname.startsWith("/icon") || url.pathname.startsWith("/fonts"))) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
+    if (r.ok && (url.pathname === "/parole.txt" || url.pathname === "/words-en.txt" || url.pathname.startsWith("/icon") || url.pathname.startsWith("/fonts"))) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
     return r;
   })));
 });

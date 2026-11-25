@@ -1,10 +1,16 @@
 # Trasforma la pagina del prototipo (artefatto) nella versione online che parla con il server.
-import sys
+# Il prototipo è bilingue: i testi fissi sono tr("..."). Le ancore qui sotto sono scritte in italiano semplice
+# e vengono avvolte in tr() come nel prototipo; alla fine si avvolgono anche i testi nuovi della versione online.
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from lingua_comune import avvolgi, chiavi, aggiungi_en_online
 src, dst = sys.argv[1], sys.argv[2]
 s = open(src, encoding='utf-8').read()
+K = chiavi(s)
 
 def rep(a, b):
     global s
+    a = avvolgi(a, K)
     assert s.count(a) == 1, (a[:90], s.count(a))
     s = s.replace(a, b)
 
@@ -26,13 +32,13 @@ let ws = null, wsTimer = null, wsDelay = 1000;
 
 function myName() { return store.get("grimorio-nome", "") || (CRED && CRED.name) || ""; }
 async function api(method, path, body) {
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", "X-Lingua": LANG };  // il server risponde nella lingua dell'interfaccia
   if (CRED) headers.Authorization = "Bearer " + CRED.token;
   let res;
   try { res = await fetch("/api/" + path, { method, headers, body: body ? JSON.stringify(body) : undefined }); }
   catch (e) { const err = new Error("Nessuna connessione con il server. Controlla la rete e riprova."); err.status = 0; throw err; }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) { const err = new Error(data.error || "Errore del server (" + res.status + ")."); err.status = res.status; throw err; }
+  if (!res.ok) { const err = new Error(data.error || tr("Errore del server ({n}).", { n: res.status })); err.status = res.status; throw err; }
   return data;
 }
 async function ensurePlayer() {
@@ -117,7 +123,7 @@ function showProfile() {
   if (!CRED) return toast("Crea o accetta una partita: il profilo nasce lì.");
   const link = location.origin + "/#accedi=" + CRED.token;
   sheet("Il tuo profilo", [
-    h("p", { text: "Sei " + (CRED.name || "Mago") + " su questo dispositivo." }),
+    h("p", { text: tr("Sei {n} su questo dispositivo.", { n: CRED.name || "Mago" }) }),
     h("p", { class: "sub", text: "Per giocare le stesse partite da un altro telefono o computer, apri lì questo link. Non mandarlo a nessuno: chi lo apre gioca al posto tuo." }),
     h("input", { type: "text", id: "link-accesso", value: link, readonly: true, onfocus: ev => ev.target.select() }),
     h("button", { class: "btn small", onclick: async () => { try { await navigator.clipboard.writeText(link); toast("Link di accesso copiato."); } catch (e) { document.getElementById("link-accesso").select(); } }, text: "Copia il link di accesso" })
@@ -126,7 +132,7 @@ function showProfile() {
 async function useAccessLink(token) {
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   const prev = CRED; CRED = { id: token.split(".")[0], token, name: "" };
-  try { const me = await api("GET", "me"); CRED.name = me.name; MYID = me.id; store.set("grimorio-cred", CRED); store.set("grimorio-nome", me.name); toast("Accesso eseguito: bentornato, " + me.name + "."); }
+  try { const me = await api("GET", "me"); CRED.name = me.name; MYID = me.id; store.set("grimorio-cred", CRED); store.set("grimorio-nome", me.name); toast(tr("Accesso eseguito: bentornato, {n}.", { n: me.name })); }
   catch (e) { CRED = prev; toast("Il link di accesso non è valido.", true); }
 }
 
@@ -149,8 +155,8 @@ rep('''    h("option", { value: "persona", text: "Un'altra persona (a distanza)"
   const canCreate = conn !== "collego";''')
 rep('''    CANWRITE === false ? h("p", { class: "note", text: "Puoi guardare le partite ma non giocare: chiedi al proprietario di invitarti come Editor." }) : null,''',
     '''    pushButton("btn"),''')
-rep('''      h("button", { class: "btn primary", disabled: !canCreate || CANWRITE === false, onclick: () => createGame(+hp.value, both.checked, vs.value, reg.value), text: "Crea partita" })),''',
-    '''      h("button", { class: "btn primary", disabled: !canCreate, onclick: () => createGame(+hp.value, both.checked, vs.value, reg.value), text: "Crea partita" })),''')
+rep('''      h("button", { class: "btn primary", disabled: !canCreate || CANWRITE === false, onclick: () => createGame(+hp.value, both.checked, vs.value, reg.value, dizSel()), text: "Crea partita" })),''',
+    '''      h("button", { class: "btn primary", disabled: !canCreate, onclick: () => createGame(+hp.value, both.checked, vs.value, reg.value, dizSel()), text: "Crea partita" })),''')
 rep('''      ids.length ? h("div", { class: "gamelist" }, ids.map(id => gameItem(id, games[id]))) : h("p", { class: "note", text: conn === "collego" ? "Carico le partite…" : "Nessuna partita. Creane una qui sopra." })),''',
     '''      ids.length ? h("div", { class: "gamelist" }, ids.map(id => gameItem(id, games[id]))) : h("p", { class: "note", text: conn === "collego" ? "Carico le partite…" : "Nessuna partita. Creane una qui sopra, oppure apri il link d'invito che ti hanno mandato." })),''')
 rep('''      h("p", { class: "note", style: "margin-top:8px", text: "Condividi questa pagina dal menu di claude.ai invitando l'avversario per email come Editor. Crea una partita: l'avversario la apre dall'elenco e tocca «Siediti come Mago Rosso». Ognuno gioca il proprio turno quando può; la partita si aggiorna da sola." })),
@@ -160,10 +166,10 @@ rep('''      h("p", { class: "note", style: "margin-top:8px", text: "Condividi q
       h("p", { class: "note", style: "margin-top:8px", text: "In Chrome per Android apri il menu ⋮ e scegli «Aggiungi a schermata Home» (o «Installa app»). Grimorio si aprirà a tutto schermo come un'app e potrà mandarti le notifiche." })),
     h("div", { class: "row" }, h("button", { class: "btn link", onclick: showRules, text: "Regole in breve" }), h("button", { class: "btn link", onclick: showExplorer, text: "Esplora il dizionario" }), CRED ? h("button", { class: "btn link", onclick: showProfile, text: "Il tuo profilo" }) : null)''')
 
-rep_range('async function createGame(hp, both, vs, regole) {', '// ---------- partita ----------', '''async function createGame(hp, both, vs, regole) {
+rep_range('async function createGame(hp, both, vs, regole, dizionari) {', '// ---------- partita ----------', '''async function createGame(hp, both, vs, regole, dizionari) {
   try {
     await ensurePlayer();
-    const r = await api("POST", "games", { hp, both, vs, regole });
+    const r = await api("POST", "games", { hp, both, vs, regole, dizionari });
     games[r.id] = r; openGame(r.id);
     if (vs === "persona" && !both) toast("Partita creata: ora tocca «Invita un amico».");
   } catch (e) { toast(e.message, true); }
@@ -192,6 +198,7 @@ async function refreshGame(id) {
 function leaveGame() {
   wsSend({ type: "unwatch" });
   cur = null; ui = freshUi(); anim = null;
+  usaDiz(dizScelti());
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   render(); loadGames();
 }
@@ -200,6 +207,7 @@ function onGameData(data, first) {
   cur.data = JSON.parse(JSON.stringify(data));
   const s = cur.data.s;
   G.applyCfg(s.cfg || BASE);
+  usaDiz(G.dizionariDi(s.cfg || {}));
   if (!prev || prev.moveNo !== s.moveNo) { const keepOrder = ui.order; ui = freshUi(); ui.order = keepOrder; }
   const seen = store.get("grimorio-visto", {});
   if (s.last && s.last.seq && seen[cur.id] !== s.last.seq) {
@@ -266,17 +274,17 @@ async function hideGame() {
 # ---------- schermata di gioco ----------
 rep('''  else if (!s.seats.B) { status = me === "A" ? "In attesa dello sfidante" : "Il posto del Mago Rosso è libero"; sub = me === "A" ? "Invita qualcuno: vedi «Come sfidare qualcuno a distanza» nella pagina delle partite." : ""; }''',
     '''  else if (!s.seats.B) { status = me === "A" ? "In attesa dello sfidante" : "Sei stato sfidato a Grimorio!"; sub = me === "A" ? "Manda il link d'invito: la partita inizia quando l'avversario si siede." : "Scegli il tuo nome e siediti come Mago Rosso."; }''')
-rep('''  else if (me && s.seats[s.turn] && s.seats[s.turn].cpu) { status = seatName(s, s.turn) + " sta pensando…"; sub = "Il computer gioca dal tuo dispositivo: resta su questa pagina."; }
-  else if (me) { status = "Tocca a " + seatName(s, s.turn); sub = "Puoi chiudere la pagina: la partita ti aspetta."; }''',
-    '''  else if (me && s.seats[s.turn] && s.seats[s.turn].cpu) { status = seatName(s, s.turn) + " sta pensando…"; }
-  else if (me) { status = "Tocca a " + seatName(s, s.turn); sub = pushOn() ? "Puoi chiudere: ti avviso quando tocca a te." : "Puoi chiudere la pagina: la partita ti aspetta."; }''')
+rep('''  else if (me && s.seats[s.turn] && s.seats[s.turn].cpu) { status = tr("{n} sta pensando…", { n: seatName(s, s.turn) }); sub = "Il computer gioca dal tuo dispositivo: resta su questa pagina."; }
+  else if (me) { status = tr("Tocca a {n}", { n: seatName(s, s.turn) }); sub = "Puoi chiudere la pagina: la partita ti aspetta."; }''',
+    '''  else if (me && s.seats[s.turn] && s.seats[s.turn].cpu) { status = tr("{n} sta pensando…", { n: seatName(s, s.turn) }); }
+  else if (me) { status = tr("Tocca a {n}", { n: seatName(s, s.turn) }); sub = pushOn() ? "Puoi chiudere: ti avviso quando tocca a te." : "Puoi chiudere la pagina: la partita ti aspetta."; }''')
 rep('''  const seatBtns = [];
   if (!me && !s.winner) for (const p of ["A", "B"]) {
-    if (!s.seats[p]) seatBtns.push(h("button", { class: "btn primary", disabled: CANWRITE === false, onclick: () => sitDown(p), text: "Siediti come " + NOMI[p] }));
+    if (!s.seats[p]) seatBtns.push(h("button", { class: "btn primary", disabled: CANWRITE === false, onclick: () => sitDown(p), text: tr("Siediti come {n}", { n: tr(NOMI[p]) }) }));
   }
   if (!me && s.seats.A && s.seats.B && !s.winner) {
     seatBtns.push(ui.claimConfirm
-      ? h("div", { class: "row" }, ["A", "B"].map(p => h("button", { class: "btn small", onclick: () => sitDown(p), text: "Sono " + seatName(s, p) })))
+      ? h("div", { class: "row" }, ["A", "B"].map(p => h("button", { class: "btn small", onclick: () => sitDown(p), text: tr("Sono {n}", { n: seatName(s, p) }) })))
       : h("button", { class: "btn link", onclick: () => { ui.claimConfirm = true; render(); }, text: "Stai già giocando questa partita da un altro dispositivo?" }));
   }''', '''  const seatBtns = [];
   if (!me && !s.winner && !s.seats.B) {
@@ -300,7 +308,7 @@ rep('''    me ? (ui.delConfirm
 rep('''window.addEventListener("hashchange", () => { const id = location.hash.slice(1); if (id && games[id] && (!cur || cur.id !== id)) openGame(id); });
 init();''', '''window.addEventListener("hashchange", () => { const m = /^#g=([a-z0-9]+)/.exec(location.hash); if (m && (!cur || cur.id !== m[1])) openGame(m[1]); });
 async function init() {
-  render(); loadDict();
+  usaDiz(dizScelti()); render();
   const acc = /^#accedi=([a-z0-9]+\\.[a-f0-9]+)/.exec(location.hash);
   if (acc) await useAccessLink(acc[1]);
   const m = /^#g=([a-z0-9]+)/.exec(location.hash);
@@ -313,6 +321,11 @@ init();''')
 # nessun riferimento rimasto al vecchio archivio
 for bad in ["DB.", "LOCAL", "CANWRITE", "maybeRunCpu", "writeGame", "commit(", "deleteGame", "claimConfirm", "aiWorker"]:
     assert bad not in s, "resta: " + bad
+
+# ---------- traduzioni: testi della versione online in tr(), con la loro traduzione inglese ----------
+s = aggiungi_en_online(s)
+i = s.index('<script>\n"use strict";'); j = s.rindex("</script>")
+s = s[:i] + avvolgi(s[i:j], K) + s[j:]
 
 # ---------- documento completo (fuori da claude.ai serve l'intestazione) ----------
 s = s.replace('<meta name="claude:viewport-fit-sides" content="cover">\n', '')

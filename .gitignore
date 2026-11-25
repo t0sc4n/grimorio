@@ -23,7 +23,9 @@ node_modules/
 *.tar.gz
 # dizionario in chiaro: si ricava da prototipo/parole.txt.gz
 parole.txt
+words-en.txt
 !prototipo/parole.txt.gz
+!prototipo/words-en.txt.gz
 # schermate e risultati delle prove
 shots/
 sim_*.json
@@ -38,3 +40,6 @@ Thumbs.db
 .DS_Store
 .tmp.drivedownload/
 .tmp.driveupload/
+
+# cache di Python degli script
+__pycache__/

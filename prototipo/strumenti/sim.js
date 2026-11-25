@@ -8,15 +8,18 @@ if (process.argv[5]) G.CFG.decay = +process.argv[5];
 if (process.argv[6] === "radici") G.CFG.radici = "designer";
 if (G.PRESETS[process.argv[6]]) G.applyCfg(G.PRESETS[process.argv[6]]);
 const OUT = process.argv[7] || "sim_result.json";
-const words = fs.readFileSync(dir + "/parole.txt", "utf8").split("\n");
-G.setDict(new Set(words));
+// dizionari dal preset: s1en gioca in inglese, s1iten con italiano e inglese insieme
+const FILE_DIZ = { it: "/parole.txt", en: "/words-en.txt" };
+const testi = G.CFG.dizionari.map(l => { const t = fs.readFileSync(dir + FILE_DIZ[l], "utf8").replace(/\r/g, "").trim(); G.setDict(new Set(t.split("\n")), l); return t; });
+const words = G.unisciTesti(testi).split("\n");
+const LINGUA = G.CFG.lingua;  // "it", "en", "it+en"
 const rng = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
 
 // parole come conteggi di lettere
 const WL = words.filter(w => w.length >= 2 && w.length <= 9).map(w => {
   const cnt = {}; for (const ch of w) cnt[ch] = (cnt[ch] || 0) + 1; return { w, cnt };
 });
-for (const el of Object.keys(G.LESSICO)) for (const w of G.LESSICO[el].split(" ")) if (!words.includes(w)) { const cnt = {}; for (const ch of w) cnt[ch] = (cnt[ch] || 0) + 1; WL.push({ w, cnt }); }
+if (LINGUA === "it") for (const el of Object.keys(G.LESSICO)) for (const w of G.LESSICO[el].split(" ")) if (!words.includes(w)) { const cnt = {}; for (const ch of w) cnt[ch] = (cnt[ch] || 0) + 1; WL.push({ w, cnt }); }
 
 function genMoves(s, p) {
   const hand = {}; for (const l of s.hands[p]) hand[l] = (hand[l] || 0) + 1;

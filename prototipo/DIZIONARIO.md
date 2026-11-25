@@ -49,3 +49,44 @@ gzip -9 -n -c parole.txt > prototipo/parole.txt.gz
 ```
 
 Il sito https://grimorio.tecnogenitori.com serve lo stesso elenco, non compresso, all'indirizzo `/parole.txt`.
+
+---
+
+# Il dizionario inglese
+
+`words-en.txt.gz` contiene le **141 047 parole** delle partite in inglese, nello stesso formato del dizionario italiano: da 2 a 11 lettere, in maiuscolo, una per riga e in ordine alfabetico. Le partite in inglese usano solo questo dizionario, quelle in italiano solo `parole.txt.gz`.
+
+## Da dove viene
+
+Il dizionario inglese deriva da **ENABLE** (*Enhanced North American Benchmark LExicon*), l'elenco di parole usato da molti giochi di parole. I suoi autori lo hanno messo nel **pubblico dominio**, quindi si può usare senza vincoli di licenza.
+
+Grimorio usa il file `enable1.txt` di https://github.com/dolph/dictionary.
+
+## Che cosa è stato cambiato
+
+**[`strumenti/prepara_inglese.py`](strumenti/prepara_inglese.py)**:
+- porta le parole in maiuscolo;
+- tiene solo quelle da 2 a 11 lettere;
+- ordina l'elenco ed elimina i doppioni.
+
+ENABLE non contiene nomi propri, sigle o parole con apostrofo, quindi non serve altro filtro. Le partite in inglese usano tutte le 26 lettere.
+
+## La Sacca inglese
+
+Lo script **[`strumenti/sacca_inglese.js`](strumenti/sacca_inglese.js)** conta quanto è frequente ogni lettera nelle parole da 2 a 7 lettere e propone una Sacca di 90 tessere, con valori da 1 a 10. I numeri finali, in `LINGUE.en` dentro `engine.js`, sono stati ritoccati a mano:
+- le vocali sono di più (circa il 40% delle tessere) perché le mani restino giocabili;
+- le S sono solo 4: in inglese bastano ad allungare quasi ogni parola al plurale.
+
+## Partite con più dizionari
+
+Una partita può usare insieme il dizionario italiano e quello inglese: una parola vale se è in almeno uno dei due. In questo caso la Sacca è mista. La funzione `sacca()` in `engine.js` la calcola così:
+- **Quantità:** fa la media delle quote di ogni lettera nelle Sacche delle lingue scelte e la riporta a 90 tessere, con almeno una tessera per lettera;
+- **Valori:** fa la media dei valori della lettera nelle lingue in cui esiste. Per esempio K, che c'è solo in inglese, vale come in inglese.
+
+## Rigenerarlo
+
+```bash
+curl -LO https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt
+python prototipo/strumenti/prepara_inglese.py enable1.txt words-en.txt
+gzip -9 -n -c words-en.txt > prototipo/words-en.txt.gz
+```
