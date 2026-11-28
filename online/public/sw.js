@@ -1,5 +1,5 @@
 // Grimorio — service worker: app disponibile anche con rete lenta, notifiche "Tocca a te".
-const CACHE = "grimorio-v16";
+const CACHE = "grimorio-v22";
 const SHELL = ["/", "/index.html", "/app.js", "/fonts.css", "/engine.js", "/manifest.webmanifest", "/icon.svg", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", e => {

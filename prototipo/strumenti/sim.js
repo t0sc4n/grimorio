@@ -21,6 +21,8 @@ const WL = words.filter(w => w.length >= 2 && w.length <= 9).map(w => {
 });
 if (LINGUA === "it") for (const el of Object.keys(G.LESSICO)) for (const w of G.LESSICO[el].split(" ")) if (!words.includes(w)) { const cnt = {}; for (const ch of w) cnt[ch] = (cnt[ch] || 0) + 1; WL.push({ w, cnt }); }
 
+// frequenza delle lettere nel dizionario (per la Trasformazione)
+const FREQ = {}; for (const it of WL) for (const ch in it.cnt) FREQ[ch] = (FREQ[ch] || 0) + 1;
 function genMoves(s, p) {
   const hand = {}; for (const l of s.hands[p]) hand[l] = (hand[l] || 0) + 1;
   const board = {}; for (const k in s.tiles) { const l = s.tiles[k].l; board[l] = (board[l] || 0) + 1; }
@@ -84,6 +86,8 @@ function aiTurn(s, p) {
   let moves = [];
   for (const pl of genMoves(s, p)) { const v = G.validate(s, p, pl, {}); if (v.ok) moves.push([pl, v]); }
   STATS.valid += moves.length; STATS.turns++; if (!moves.length) STATS.noMove++;
+  const nAtk = moves.filter(m => m[1].launches && m[1].launches.length).length; // mosse da cui si potrebbe lanciare
+  STATS.nAtk = nAtk; STATS.nValid = moves.length;
   if (moves.length > 400) { for (let i = moves.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [moves[i], moves[j]] = [moves[j], moves[i]]; } moves = moves.slice(0, 400); }
   let best = null, bestV = -Infinity;
   for (const [pl, v] of moves) {
@@ -107,6 +111,17 @@ function aiTurn(s, p) {
       if (val > bestV) { bestV = val; best = r; }
     }
   }
+  // Trasformazione (se attiva): al posto della mossa trasforma la lettera più pesante nella lettera permessa più frequente
+  // nel dizionario (una vocale se in mano ce ne sono meno di 2). Viene scelta se in mano ci sono almeno 2 lettere pesanti, o se la mossa migliore guadagna meno di 3.
+  if (G.CFG.trasformazione) {
+    const pes = s.hands[p].filter(l => Object.keys(G.VAL).some(x => G.puoTrasformare(l, x))).sort((x, y) => G.VAL[y] - G.VAL[x]);
+    if (pes.length) {
+      const da = pes[0], vow = s.hands[p].filter(l => "AEIOU".includes(l)).length;
+      const amm = Object.keys(G.VAL).filter(x => G.puoTrasformare(da, x) && (vow >= 2 || "AEIOU".includes(x)));
+      const a = amm.sort((x, y) => (FREQ[y] || 0) - (FREQ[x] || 0))[0];
+      if (a) { const r = G.trasforma(s, p, da, a, rng); if (r.ok) { const gain = best ? bestV - evalState(s, p) : -Infinity; if (!best || pes.length >= 2 || gain < 3) { STATS.trasf = (STATS.trasf || 0) + 1; return { state: r.state, report: r.state.last }; } } }
+    }
+  }
   if (!best) {
     // Alchimia: con l'Alchimia parziale cambia solo le lettere pesanti (H, Q, Z) se ne ha, altrimenti tutta la mano
     const heavy = s.hands[p].filter(l => G.VAL[l] >= 8);
@@ -126,6 +141,7 @@ for (let g = 0; g < N; g++) {
     const prevS = s, p = s.turn, r = aiTurn(s, p), rep = r.report || r.state.last;
     s = r.state; st.moves++;
     if (rep.kind === "alchimia") st.alchimia++;
+    else if (rep.kind === "trasforma") st.trasforma = (st.trasforma || 0) + 1;
     else if (rep.kind === "passa") st.passa++;
     else {
       st.words.push(rep.word);
@@ -140,7 +156,12 @@ for (let g = 0; g < N; g++) {
       if (rep.type === "attacco") {
         if (rep.consumed && G.bridgeActive(prevS, p) && !G.bridgeActive(s, p)) st.ponteRotto = (st.ponteRotto || 0) + 1;
         st.attacks++; st.scores.push(rep.score);
-        const lr = G.parse(rep.launch)[0], z = G.zoneOf(lr), zone = z === p ? "casa" : z === "M" ? "centro" : "invasione";
+        const lr = G.parse(rep.launch)[0], z = G.zoneOf(lr);
+        // profondità del lancio nel Sanctum nemico: 0 = bordo esterno, 2 = riga d'ingresso
+        const depth = p === "A" ? G.ROWS - 1 - lr : lr;
+        st.launchDepth = st.launchDepth || [0, 0, 0, 0]; st.launchDepth[Math.min(depth, 3)]++;
+        if (rep.damage) { st.hitDepth = st.hitDepth || [0, 0, 0, 0]; st.hitDepth[Math.min(depth, 3)]++; }
+        const zone = z === p ? "casa" : z === "M" ? "centro" : "invasione";
         if (rep.capped) st.capped = (st.capped || 0) + 1;
         if (rep.damage) { st.attacksHit++; st.dmg[p] += rep.damage; st.dmgByZone[zone] += rep.damage; }
         if (rep.path.some(x => x.kind === "assorbito")) st.absorbedStops++;
@@ -151,11 +172,20 @@ for (let g = 0; g < N; g++) {
       if (rep.storm) { st.storms++; st.crolli += rep.destroyed.filter(d => d.mode === "crollo").length; }
     }
     if (rep.faded) st.faded += rep.faded.length;
+    if (process.env.SIM_TRACE) {
+      // registro mossa per mossa: giocatore, tipo, parola, danno, PV, ponti, mosse valide e mosse da cui si poteva lanciare
+      const tipo = rep.kind === "alchimia" || rep.kind === "passa" || rep.kind === "trasforma" ? rep.kind : rep.type;
+      const cons = Object.values(s.words).filter(w => w.consacrata);
+      (st.trace = st.trace || []).push([s.moveNo, p, tipo, rep.word || "", rep.type === "attacco" ? rep.damage || 0 : "", rep.type === "attacco" && rep.launch ? (p === "A" ? G.ROWS - 1 - G.parse(rep.launch)[0] : G.parse(rep.launch)[0]) : "",
+        s.hp.A, s.hp.B, G.bridgeActive(s, "A") ? 1 : 0, G.bridgeActive(s, "B") ? 1 : 0, STATS.nValid, STATS.nAtk,
+        cons.filter(w => w.o === "A").map(w => w.text + ":" + w.stab).join(","), cons.filter(w => w.o === "B").map(w => w.text + ":" + w.stab).join(","), Object.keys(s.tiles).length, s.hands.A.length, s.hands.B.length, s.hands[p].filter(l => G.VAL[l] >= 8).length]);  // + lettere in mano e lettere pesanti di chi ha mosso
+    }
     for (const q of ["A", "B"]) if (st.bridgeTurn[q] === null && G.bridgeActive(s, q)) st.bridgeTurn[q] = s.moveNo;
   }
   console.log(`   turni senza nessuna mossa valida: ${STATS.noMove}/${STATS.turns} | mosse valide medie per turno: ${(STATS.valid / STATS.turns).toFixed(0)} | tessere sul campo a fine partita: ${Object.keys(s.tiles).length}/90 | sacca ${s.bag.length} | mani ${s.hands.A.join("")} ${s.hands.B.join("")}`);
   st.winner = s.winner || "pareggio"; st.hp = s.hp; st.sec = ((Date.now() - t0) / 1000).toFixed(1);
   all.push(st);
+  fs.writeFileSync(dir + "/../" + OUT, JSON.stringify(all, null, 1)); // salvataggio dopo ogni partita: un'interruzione non fa perdere tutto
   console.log(`Partita ${g + 1}: vince ${st.winner} in ${st.moves} mosse | PV A ${s.hp.A} B ${s.hp.B} | attacchi ${st.attacks} (a segno ${st.attacksHit}) | colpi tagliati dal tetto ${st.capped || 0} | danni casa/centro/invasione ${st.dmgByZone.casa}/${st.dmgByZone.centro}/${st.dmgByZone.invasione} | difese ${st.defenses} (consacrate ${st.consacrate || 0}) | intercettati ${st.intercepted || 0}, fermati ${st.absorbedStops}, sfondate ${st.broken || 0}, lanci bloccati ${st.blocked || 0} | falò ${st.falo}, tempeste ${st.storms}, crolli ${st.crolli} | ponte A@${st.bridgeTurn.A} B@${st.bridgeTurn.B} | cataclismi ${st.cataclismi || 0} | ponti rotti attaccando ${st.ponteRotto || 0} | alchimie ${st.alchimia} passi ${st.passa} | ${st.sec}s`);
   console.log("   parole: " + st.words.join(" "));
 }

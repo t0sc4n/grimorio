@@ -18,12 +18,17 @@ k = s.index("// ---------- parola intera dal dizionario")
 s = s[:k] + '''// ---------- suggerimento: costa PV, lo calcola il server ----------
 let hintBusy = false;
 async function askHint() {
-  if (hintBusy || !cur) return;
+  if (hintBusy || !cur || !S()) return;
+  const id = cur.id, reqMoveNo = S().moveNo;
   hintBusy = true; render();
   try {
-    const r = await api("POST", "games/" + cur.id + "/suggest", { moveNo: S().moveNo });
-    games[r.id] = { id: r.id, s: r.s, updated: r.updated };
-    if (cur && cur.id === r.id) { onGameData(games[r.id]); hintBusy = false; applyHint(r.hint); }
+    const r = await api("POST", "games/" + id + "/suggest", { moveNo: reqMoveNo });
+    if (!isStale(games[r.id], { id: r.id, s: r.s, updated: r.updated })) games[r.id] = { id: r.id, s: r.s, updated: r.updated };
+    if (cur && cur.id === r.id) {
+      onGameData({ id: r.id, s: r.s, updated: r.updated });
+      hintBusy = false;
+      if (r.hint && S() && S().moveNo === reqMoveNo && myTurn()) applyHint(r.hint);
+    }
   } catch (e) { toast(e.message, true); if (e.status === 409 && cur) refreshGame(cur.id); }
   hintBusy = false; render();
 }

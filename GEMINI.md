@@ -7,7 +7,8 @@
 - **Sito in produzione:** `https://grimorio.tecnogenitori.com`
 - **Runtime:** Node.js 24+ (usa `node:sqlite`, `worker_threads`, zero build step / zero bundler) e Python 3 per gli script di generazione/patch.
 - **Regole e storico del bilanciamento:** `regolamento_e_struttura.md` (versioni precedenti in `regolamento_e_struttura_v*.md`).
-- **Preset attivi:** `s1` (semplificate, predefinite: 60 PV, lancio dal Sanctum nemico, consumo parola lanciata, Scudo di riga, consacrazione ×2 max 2) e `v5f` (classiche con lessico elementale, solo con il solo dizionario italiano).
+- **Preset attivi:** `s2` (semplificate, predefinite dal 28/11/2026: come s1, ma consacrazione solo sulla riga del bordo con resistenza = punteggio, Trasformazione delle lettere pesanti, 30 PV; 35 proposti con più dizionari) e `v5f` (classiche con lessico elementale, solo con il solo dizionario italiano). `s1` (60 PV, consacrazione ×2 ovunque nel Sanctum) resta per le partite create prima.
+- **Mosse:** `play`, `alchimia`, `trasforma` (`{ da, a }`) e `pass`, in `G.play` / `G.alchimia` / `G.trasforma` / `G.pass`; il giocatore automatico le sceglie in `prototipo/ai.js`, `online/ai-core.js` e `prototipo/strumenti/sim.js`.
 
 ---
 
@@ -65,12 +66,16 @@ online/                      Versione produzione VPS (Ubuntu + Apache + systemd)
 - **Service Worker e versione UI:** quando modifichi `index.html`, `app.js`, `engine.js`, `fonts.css` o altri asset della shell in `online/public/`, incrementa sia `VER` in `prototipo/index.html` sia `CACHE` (`grimorio-vNN`) in `online/public/sw.js` mantenendoli allineati.
 - **Fine riga su Windows:** il repository viene sviluppato su Windows e deployato su Linux (Ubuntu). Mantieni fine riga **LF** sugli script shell (`online/*.sh`) e sui file di `online/deploy/`.
 - **Memoria sulla VPS:** `online/deploy/grimorio.service` imposta `MemoryMax=700M`. Il server carica i dizionari sia nel processo principale sia in `ai-worker.js` (più eventuale fusione `it+en`): evita strutture inutilmente pesanti in memoria.
+- **Modello per i deploy:** i deploy vanno delegati sempre a un modello leggero:
+  - In una chat normale, delega in autonomia il deploy a un subagent su fascia **`flash`** (`Model: "flash"`).
+  - In una sessione `/swarm`, assegna il worker di deploy direttamente al modello **Hydrogen (Medium)**.
+  - Usa `python online/deploy.py` (legge i parametri SSH da `.env.deploy` o `online/deploy.env` locali, modello in `online/deploy.env.example`). Non leggere, stampare né committare mai `.env.deploy`, `online/deploy.env` o `private_key.txt`.
 
 ---
 
 ## Sicurezza e confidenzialità
 
-- **Mai leggere, stampare o committare segreti:** `.gitignore` esclude `private_key.txt`, `pass.txt`, `*.pem`, `*.key`, `.env*`, `vapid.json`, `*.db`, `online/data/`, `*.tar.gz`. Non toccare né includere mai `private_key.txt` o credenziali.
+- **Mai leggere, stampare o committare segreti:** `.gitignore` esclude `private_key.txt`, `pass.txt`, `*.pem`, `*.key`, `.env*`, `deploy.env`, `vapid.json`, `*.db`, `online/data/`, `*.tar.gz`. Non toccare né includere mai `private_key.txt`, `deploy.env`, `.env.deploy` o credenziali.
 - **Server autorevole:** ogni mossa passa da `doMove` in `online/server.js`. `viewFor(s, pid)` deve sempre oscurare la mano avversaria, `bag` e `focolare` con `"?"`.
 - **CSP e sanitizzazione:** `online/public/index.html` non deve avere `<script>` inline (`script-src 'self'`). I font devono restare locali (`/fonts.css`, `/fonts/*.woff2`), mai CDN esterne. Le push subscription accettano solo host in `PUSH_HOSTS`.
 
@@ -122,3 +127,14 @@ node sim.js ../ 100 7 1 s1 sim_s1.json
 node sim.js ../ 100 7 1 s1en sim_en.json
 node riassunto.js ../sim_s1.json
 ```
+
+### Deploy sulla VPS
+1. **Configurazione locale (una tantum):** copia `online/deploy.env.example` in `.env.deploy` nella root del repository oppure in `online/deploy.env` (entrambi esclusi da `.gitignore`) e imposta `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PORT`, `DEPLOY_KEY`, `DEPLOY_SUDO`, `DEPLOY_REMOTE_DIR`.
+2. **Esecuzione:**
+   ```bash
+   python online/deploy.py             # verifica invarianti, crea online/grimorio-server.tar.gz, carica via scp e lancia update.sh sulla VPS
+   python online/deploy.py --pack-only # solo verifiche e creazione pacchetto locale
+   python online/deploy.py --dry-run   # verifiche, pacchetto e anteprima comandi scp/ssh senza upload
+   ```
+- Lo script controlla automaticamente che `prototipo/engine.js` e `online/public/engine.js` siano identici, che `VER` (`prototipo/index.html`, `online/public/app.js`) e `CACHE` (`online/public/sw.js`) siano allineati, che non ci siano `<script>` inline in `online/public/index.html` e che `online/*.sh` + `online/deploy/*` abbiano fine riga `LF`; inoltre decomprime i dizionari direttamente dentro il `.tar.gz` e `online/update.sh` esegue il backup del DB prima di riavviare il servizio `grimorio`.
+- **Regola operativa:** delega sempre il deploy a un modello leggero (`flash` in chat normale, **Hydrogen (Medium)** in `/swarm`) e non leggere, stampare né committare mai `.env.deploy`, `online/deploy.env` o `private_key.txt`.

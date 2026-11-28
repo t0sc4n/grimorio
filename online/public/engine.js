@@ -29,6 +29,10 @@
      dal lato di chi le scrive (per il Blu, che ha il campo girato, dalla riga più alta alla più bassa). */
   /* v5: consacrazione: una parola neutra tutta nel proprio Sanctum può diventare difesa con resistenza = punteggio x valore (0 = no),
      bloccoInvasione: nel Sanctum nemico non si lancia da colonne protette da una difesa nemica (colonna della lettera ±difesaLarga) */
+  /* s2 (prove del 26-28/11/2026): aggancioLibero: true = basta essere collegati al proprio ponte, "qualsiasi" = ci si aggancia
+     a una parola qualsiasi nel Sanctum nemico, "pontePiu" = ponte oppure aggancio; consacraBordo: si consacra solo sulla riga
+     del bordo esterno (quella del Mago); danno: scala la potenza degli incantesimi; trasformazione: al posto della mossa una
+     lettera pesante (da trasformaMin punti, 8 se assente) diventa una lettera che vale al massimo la metà */
   var PRESETS = {
     v2: { mid: 3, hp: 20, hand: 7, decay: 1, radici: false, attacchi: "ovunque", difesaLarga: 0, faloOgni: 0, consumoNeutre: 0, ponteCentro: false, tempestaLocale: false, tettoDanno: 0 },
     v3: { mid: 5, hp: 40, hand: 7, decay: 1, radici: "lunghe", attacchi: "sanctum", difesaLarga: 1, faloOgni: 3, consumoNeutre: 0, ponteCentro: false, tempestaLocale: false, tettoDanno: 0 },
@@ -53,11 +57,36 @@
     s1r2m1: { mid: 5, hp: 80, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 1, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga" },
     s1r2h60: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga" },
     // s1 adottata il 24/11/2026: lancio solo dal Sanctum nemico, parola lanciata consumata, Scudo di riga, consacrazione x2 (max 2), 60 PV
+    // s2 adottata il 28/11/2026: come s1, ma consacrazione solo sulla riga del bordo con resistenza = punteggio, Trasformazione, 30 PV
+    s2: { mid: 5, hp: 30, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true, trasformazione: true },
     s1: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga" },
     // s1 in inglese: stesse regole, dizionario ENABLE e Sacca inglese
     s1en: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", lingua: "en" },
     // s1 con i dizionari italiano e inglese insieme (Sacca mista)
     s1iten: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", dizionari: ["it", "en"] },
+    // s1 con aggancio libero (variante B, prova del 26/11/2026): nel Sanctum nemico basta essere collegati al proprio ponte
+    s1lib: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", aggancioLibero: true },
+    s1agg: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", aggancioLibero: "qualsiasi" },
+    s1lib40: { mid: 5, hp: 40, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", aggancioLibero: true },
+    s1lib35: { mid: 5, hp: 35, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", aggancioLibero: true },
+    s1bordo: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true },
+    s1bordoC1: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true },
+    s1bordoC1h40: { mid: 5, hp: 40, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true },
+    s1bordoC1h35: { mid: 5, hp: 35, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true },
+    s1bordoC1h30: { mid: 5, hp: 30, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true },
+    s1bordoTh30: { mid: 5, hp: 30, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true, trasformazione: true },
+    s1bordoTh35iten: { mid: 5, hp: 35, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true, trasformazione: true, dizionari: ["it", "en"] },
+    s1bordoTh40iten: { mid: 5, hp: 40, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true, trasformazione: true, dizionari: ["it", "en"] },
+    s1bordoP2h40: { mid: 5, hp: 40, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true, passo: 2 },
+    s1bordoP2h45: { mid: 5, hp: 45, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true, passo: 2 },
+    s1bordoD07h40: { mid: 5, hp: 40, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true, danno: 0.7 },
+    s1bordoC1h30en: { mid: 5, hp: 30, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true, lingua: "en" },
+    s1bordoC1h30iten: { mid: 5, hp: 30, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 1, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true, dizionari: ["it", "en"] },
+    s1bordoH40: { mid: 5, hp: 40, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true },
+    s1bordoM1: { mid: 5, hp: 60, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 1, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", consacraBordo: true },
+    s1piu35: { mid: 5, hp: 35, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", aggancioLibero: "pontePiu" },
+    s1piu35bordo: { mid: 5, hp: 35, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", aggancioLibero: "pontePiu", consacraBordo: true },
+    s1lib30: { mid: 5, hp: 30, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 2, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga", aggancioLibero: true },
     s1r: { mid: 5, hp: 80, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 0.5, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, scudo: "riga" },
     s1b: { mid: 5, hp: 80, hand: 7, decay: 1, radici: "lunghe", attacchi: "nemico", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 0.5, bloccoInvasione: true, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true },
     s1d: { mid: 5, hp: 30, hand: 7, decay: 1, radici: "lunghe", attacchi: "sanctum", difesaLarga: 1, faloOgni: 3, consumoNeutre: 1, ponteCentro: true, tempestaLocale: true, tettoDanno: 0, consacrazione: 0.5, bloccoInvasione: false, consacrataConsuma: true, maxConsacrate: 2, letturaDalLato: true, attaccoLibero: true, attaccoConsuma: true, passo: 2 },
@@ -69,7 +98,7 @@
     c = c || {};
     Object.keys(c).forEach(function (k) { CFG[k] = c[k]; });
     // regole aggiunte dopo: le partite salvate prima non le hanno, quindi valgono spente
-    ["attaccoLibero", "attaccoConsuma", "passo", "scudo"].forEach(function (k) { if (!(k in c)) CFG[k] = false; });
+    ["attaccoLibero", "attaccoConsuma", "passo", "scudo", "aggancioLibero", "consacraBordo", "danno", "trasformazione"].forEach(function (k) { if (!(k in c)) CFG[k] = false; });
     // dizionari della partita: cfg.dizionari (uno o più), altrimenti cfg.lingua; le partite di prima sono in italiano
     CFG.dizionari = dizionariDi(c);
     CFG.lingua = CFG.dizionari.join("+");   // "it", "en", "it+en"…: con più dizionari il lessico elementale non vale
@@ -237,6 +266,7 @@
   var MSG = {
     it: {
       posaLettera: "Posa almeno una lettera.", fuoriCampo: "Fuori dal campo.", occupata: "Casella già occupata.",
+      noTrasf: "La Trasformazione non è attiva in questa partita.", trasfPesante: "Si trasformano solo le lettere pesanti (da {n} punti in su).", trasfValore: "La nuova lettera può valere al massimo {n} punti.",
       noLettera: "Lettera non presente nel Grimorio.", rigaColonna: "Le lettere vanno in una sola riga o colonna.",
       continua: "Le lettere devono formare una parola continua.", dueLettere: "Una parola ha almeno due lettere.",
       noDiz: "{w} non è nel dizionario.", noDizCroce: "Si forma anche {w}, che non è nel dizionario.",
@@ -252,6 +282,7 @@
       lancioSanctum: "Per attaccare la parola deve avere una lettera in un Sanctum.",
       noConsacr: "La Consacrazione non è attiva in questa partita.", consNeutre: "Si consacrano solo parole neutre.",
       consSanctum: "Si consacrano solo parole scritte tutte nel proprio Sanctum.",
+      consBordo: "Si consacrano solo parole scritte tutte sulla riga del bordo, quella del Mago.",
       consMax: "Hai già {n} difese consacrate attive (massimo {m}).",
       finita: "La partita è finita.", noTurno: "Non è il tuo turno.", sceltaAlch: "Scegli almeno una lettera da cambiare.",
       suggPV: "Ti servono più di {n} PV per chiedere un suggerimento.",
@@ -267,6 +298,7 @@
       erige: "{p} erige {w} (resistenza {n}).", scrive: "{p} scrive {w}.",
       tempesta: "Tempesta Arcana! Estratta la {l}: forza {n}.", crollano: "Crollano: {l}.",
       alchimia: "{p} usa l'Alchimia e cambia {n} lettere.", alchimiaTutte: "{p} usa l'Alchimia e cambia tutte le lettere.",
+      trasforma: "{p} usa la Trasformazione: {a} diventa {b}.",
       suggerimento: "{p} chiede un suggerimento (−{n} PV).", passa: "{p} passa il turno.",
       suggFallito: "Suggerimento non riuscito: {n} PV restituiti.", abbandona: "{p} abbandona la partita. Vince {q}.",
       tempoScaduto: "Tempo scaduto per {p}: il turno passa.",
@@ -275,6 +307,7 @@
     },
     en: {
       posaLettera: "Place at least one letter.", fuoriCampo: "Off the board.", occupata: "That square is already taken.",
+      noTrasf: "Transformation is not active in this game.", trasfPesante: "Only heavy letters ({n} points or more) can be transformed.", trasfValore: "The new letter can be worth at most {n} points.",
       noLettera: "That letter is not in your Grimoire.", rigaColonna: "The letters must be in a single row or column.",
       continua: "The letters must form one continuous word.", dueLettere: "A word has at least two letters.",
       noDiz: "{w} is not in the dictionary.", noDizCroce: "It also forms {w}, which is not in the dictionary.",
@@ -290,6 +323,7 @@
       lancioSanctum: "To attack, the word must have a letter in a Sanctum.",
       noConsacr: "Consecration is not active in this game.", consNeutre: "Only neutral words can be consecrated.",
       consSanctum: "Only words written entirely in your own Sanctum can be consecrated.",
+      consBordo: "Only words written entirely on the edge row, the Mage's row, can be consecrated.",
       consMax: "You already have {n} active consecrated defences (maximum {m}).",
       finita: "The game is over.", noTurno: "It is not your turn.", sceltaAlch: "Choose at least one letter to change.",
       suggPV: "You need more than {n} HP to ask for a hint.",
@@ -305,6 +339,7 @@
       erige: "{p} raises {w} (resistance {n}).", scrive: "{p} writes {w}.",
       tempesta: "Arcane Storm! The letter {l} is drawn: force {n}.", crollano: "Collapsing: {l}.",
       alchimia: "{p} uses Alchemy and changes {n} letters.", alchimiaTutte: "{p} uses Alchemy and changes all letters.",
+      trasforma: "{p} uses Transformation: {a} becomes {b}.",
       suggerimento: "{p} asks for a hint (−{n} HP).", passa: "{p} passes.",
       suggFallito: "The hint failed: {n} HP refunded.", abbandona: "{p} leaves the game. {q} wins.",
       tempoScaduto: "Time is up for {p}: the turn passes.",
@@ -425,8 +460,20 @@
     var active = bridgeActive(s, p);
     if (zones[e]) {
       if (!active) return E("serveColl");
-      var hooked = Object.keys(s.words).some(function (id) { var w = s.words[id]; return w.o === e && inZone(w, e) && touches(newWord, w); });
-      if (!hooked) return E("aggancio");
+      if (CFG.aggancioLibero === "pontePiu") {
+        // variante B+: collegata al proprio ponte oppure agganciata a una parola nemica nel suo Sanctum
+        var agg = Object.keys(s.words).some(function (id) { var w = s.words[id]; return w.o === e && inZone(w, e) && touches(newWord, w); });
+        if (!agg && !network(hyp, p)._new) return E("aggancio");
+      } else if (CFG.aggancioLibero === "qualsiasi") {
+        // variante A: ci si aggancia a una parola qualsiasi (di chiunque) che ha una lettera nel Sanctum nemico
+        if (!Object.keys(s.words).some(function (id) { var w = s.words[id]; return inZone(w, e) && touches(newWord, w); })) return E("aggancio");
+      } else if (CFG.aggancioLibero) {
+        // variante B: basta che la parola sia collegata al proprio ponte, senza agganciarsi a una parola nemica
+        if (!network(hyp, p)._new) return E("ponteMezzo");
+      } else {
+        var hooked = Object.keys(s.words).some(function (id) { var w = s.words[id]; return w.o === e && inZone(w, e) && touches(newWord, w); });
+        if (!hooked) return E("aggancio");
+      }
     }
 
     var targets = [];
@@ -469,6 +516,8 @@
       if (!CFG.consacrazione) return E("noConsacr");
       if (cls.type !== "neutra" || opts.falo) return E("consNeutre");
       if (!main.cells.every(function (k) { return zoneOf(parse(k)[0]) === p; })) return E("consSanctum");
+      // consacraBordo: la difesa consacrata va scritta tutta sulla riga del bordo esterno del proprio Sanctum
+      if (CFG.consacraBordo && !main.cells.every(function (k) { return parse(k)[0] === (p === "A" ? 0 : ROWS - 1); })) return E("consBordo");
       if (CFG.maxConsacrate) {
         var attive = Object.keys(s.words).filter(function (id) { return s.words[id].o === p && s.words[id].consacrata; }).length;
         if (attive >= CFG.maxConsacrate) return E("consMax", { n: attive, m: CFG.maxConsacrate });
@@ -525,7 +574,7 @@
 
   // simula il viaggio dell'incantesimo (muta s)
   function cast(s, p, word, launchKey, rep) {
-    var rc = parse(launchKey), r = rc[0], c = rc[1], dir = p === "A" ? 1 : -1, power = word.score, e = enemy(p);
+    var rc = parse(launchKey), r = rc[0], c = rc[1], dir = p === "A" ? 1 : -1, power = CFG.danno ? Math.max(1, Math.round(word.score * CFG.danno)) : word.score, e = enemy(p);  // danno: scala la potenza (prova del 28/11/2026)
     var own = {}; word.cells.forEach(function (k) { own[k] = 1; });
     var hit = {}, path = [];
     // Scudo: prima del viaggio, l'incantesimo lanciato nel Sanctum nemico affronta le difese che coprono la sua colonna
@@ -694,6 +743,27 @@
     endTurn(s, p, rng, { by: p, kind: "alchimia", destroyed: [] });
     return { ok: true, state: s };
   }
+  // Trasformazione (CFG.trasformazione, prova del 28/11/2026): al posto della mossa, una lettera pesante della mano
+  // (da CFG.trasformaMin punti in su, 8 se assente) diventa una lettera che vale al massimo la metà; resta quella nuova
+  function trasformaMin() { return CFG.trasformaMin || 8; }
+  function puoTrasformare(da, a) {
+    if (!CFG.trasformazione || !VAL[da] || !VAL[a]) return false;
+    return VAL[da] >= trasformaMin() && VAL[a] <= Math.floor(VAL[da] / 2);
+  }
+  function trasforma(s0, p, da, a, rng) {
+    rng = rng || Math.random;
+    if (s0.turn !== p || s0.winner) return E("noTurno");
+    if (!CFG.trasformazione) return E("noTrasf");
+    var j = s0.hands[p].indexOf(da);
+    if (j < 0) return E("noLettera");
+    if (!(VAL[da] >= trasformaMin())) return E("trasfPesante", { n: trasformaMin() });
+    if (!VAL[a] || VAL[a] > Math.floor(VAL[da] / 2)) return E("trasfValore", { n: Math.floor(VAL[da] / 2) });
+    var s = clone(s0);
+    s.hands[p][j] = a;
+    addLog(s, "trasforma", { p: p, a: da, b: a });
+    endTurn(s, p, rng, { by: p, kind: "trasforma", from: da, to: a, destroyed: [] });
+    return { ok: true, state: s };
+  }
   // Suggerimento: costa PV (CFG.costoSuggerimento, 3 se assente) e resta nella cronaca; il turno non passa
   function suggerisci(s0, p) {
     if (s0.winner) return E("finita");
@@ -733,7 +803,7 @@
     tr: tr, testoLog: testoLog, setLinguaUI: setLinguaUI, LINGUA_UI: LINGUA_UI, MSG: MSG,
     COLS: COLS, ROWS: ROWS, STAFFA: STAFFA, VAL: VAL, BAG: BAG, LINGUE: LINGUE, dizionariDi: dizionariDi, sacca: sacca, unisciTesti: unisciTesti, MULT: MULT, CFG: CFG, LESSICO: LESSICO, RADICI: RADICI,
     setDict: setDict, isWord: isWord, classify: classify, key: key, parse: parse, zoneOf: zoneOf, enemy: enemy,
-    newGame: newGame, applyCfg: applyCfg, PRESETS: PRESETS, RADICI_LUNGHE: RADICI_LUNGHE, validate: validate, play: play, alchimia: alchimia, pass: pass, suggerisci: suggerisci,
+    newGame: newGame, applyCfg: applyCfg, PRESETS: PRESETS, RADICI_LUNGHE: RADICI_LUNGHE, validate: validate, play: play, alchimia: alchimia, trasforma: trasforma, puoTrasformare: puoTrasformare, pass: pass, suggerisci: suggerisci,
     bridgeActive: bridgeActive, protectedCols: protectedCols, network: network, cellIndex: cellIndex, previewLaunches: previewLaunches, name: name
   };
   applyCfg({});

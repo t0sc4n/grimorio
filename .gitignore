@@ -7,6 +7,7 @@ id_rsa*
 id_ed25519*
 .env
 .env.*
+deploy.env
 # chiavi delle notifiche push generate dal server
 vapid.json
 

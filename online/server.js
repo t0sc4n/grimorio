@@ -18,6 +18,8 @@ const DATA = process.env.DATA_DIR || path.join(__dirname, "data");
 const PUBLIC = path.join(__dirname, "public");
 const SITE = (process.env.SITE_URL || "http://localhost:" + PORT).replace(/\/$/, "");
 const BASE_RULES = G.PRESETS.v5f;
+// PV predefiniti delle partite semplificate con più dizionari (più parole possibili, partite più corte)
+const PV_MISTE = 35;
 // tempo per turno nelle partite tra due persone; promemoria quando ne restano 12 ore
 const TURN_MS = Math.round(+(process.env.TURN_HOURS || 48) * 3600e3);
 const REMIND_MS = Math.min(12 * 3600e3, TURN_MS / 4);
@@ -133,6 +135,7 @@ const SRV_EN = {
   "Questa partita ha già due giocatori.": "This game already has two players.",
   "Troppe mosse in poco tempo: rallenta un attimo.": "Too many moves in a short time: slow down a moment.",
   "Troppi suggerimenti in poco tempo: aspetta un attimo.": "Too many hints in a short time: wait a moment.",
+  "C'è già un suggerimento in calcolo per questa partita.": "A hint is already being calculated for this game.",
   "La partita è già finita.": "The game is already over.",
   "Puoi togliere dall'elenco solo le partite finite.": "You can only remove finished games from the list.",
   "Indirizzo sconosciuto.": "Unknown address.",
@@ -240,8 +243,10 @@ function commitState(id, s, quiet) {
 }
 
 // ---------- il computer gioca sul server (in un thread separato) ----------
-let aiWorker = null, aiBusy = null;   // aiBusy: { id, timer } della partita in elaborazione
+let aiWorker = null, aiBusy = null, aiJobSeq = 0; // aiBusy: { id, jobId, timer } della partita in elaborazione
 const cpuQueue = [];                  // partite in attesa del turno del computer
+const cpuTimers = new Set();          // partite con avvio schedulato (evita duplicati)
+const pendingHints = new Set();       // suggerimenti in corso (id:seat)
 function startAiWorker() {
   aiWorker = new Worker(path.join(__dirname, "ai-worker.js"));
   aiWorker.on("message", m => { if (m.ready) return pumpCpu(); onAiResult(m); });
@@ -254,9 +259,15 @@ function startAiWorker() {
 }
 function scheduleCpu(id, s) {
   if (s.winner || !s.seats[s.turn] || !s.seats[s.turn].cpu) return;
-  if (cpuQueue.includes(id) || (aiBusy && aiBusy.id === id)) return;
-  if (cpuQueue.length >= LIMITS.cpuQueueMax) { console.error("coda del computer piena, partita", id, "rimandata"); return setTimeout(() => { const g = loadGame(id); if (g) scheduleCpu(id, g.s); }, 30000); }
-  setTimeout(() => { if (!cpuQueue.includes(id)) { cpuQueue.push(id); pumpCpu(); } }, 1200); // una pausa: l'animazione della mossa resta visibile
+  if (cpuTimers.has(id) || cpuQueue.includes(id) || (aiBusy && !aiBusy.hint && aiBusy.id === id)) return;
+  if (cpuQueue.length >= LIMITS.cpuQueueMax) {
+    console.error("coda del computer piena, partita", id, "rimandata");
+    cpuTimers.add(id);
+    return setTimeout(() => { cpuTimers.delete(id); const g = loadGame(id); if (g) scheduleCpu(id, g.s); }, 30000);
+  }
+  const delay = s.last && s.last.kind === "parola" && (s.last.type === "attacco" || s.last.type === "falo") ? Math.min(6000, 1150 + ((s.last.path && s.last.path.length) || 0) * 540 + 2200) : 1200;
+  cpuTimers.add(id);
+  setTimeout(() => { cpuTimers.delete(id); if (!cpuQueue.includes(id)) { cpuQueue.push(id); pumpCpu(); } }, delay); // una pausa: l'animazione della mossa resta visibile
 }
 const hintQueue = []; // suggerimenti richiesti dai giocatori: { id, state, seat, resolve, reject }
 function askAi(id, state, seat) {
@@ -268,9 +279,9 @@ function askAi(id, state, seat) {
 function pumpCpu() {
   if (!aiWorker || aiBusy) return;
   if (hintQueue.length) {
-    const j = hintQueue.shift();
-    aiBusy = { id: j.id, hint: j, timer: setTimeout(() => { console.error("il suggeritore ci mette troppo nella partita", j.id); aiWorker.terminate(); }, 30000) };
-    aiWorker.postMessage({ id: j.id, state: j.state, seat: j.seat, level: "normale" });
+    const j = hintQueue.shift(), jobId = ++aiJobSeq;
+    aiBusy = { id: j.id, jobId, hint: j, timer: setTimeout(() => { console.error("il suggeritore ci mette troppo nella partita", j.id); aiWorker.terminate(); }, 30000) };
+    aiWorker.postMessage({ id: j.id, jobId, state: j.state, seat: j.seat, level: "normale" });
     return;
   }
   if (!cpuQueue.length) return;
@@ -279,11 +290,12 @@ function pumpCpu() {
   const s = g.s, seat = s.turn;
   if (s.winner || !s.seats[seat] || !s.seats[seat].cpu) return pumpCpu();
   // se il calcolo si blocca, il thread viene riavviato
-  aiBusy = { id, moveNo: s.moveNo, timer: setTimeout(() => { console.error("il computer ci mette troppo nella partita", id); aiWorker.terminate(); }, 60000) };
-  aiWorker.postMessage({ id, state: s, seat, level: s.seats[seat].livello || "normale" });
+  const jobId = ++aiJobSeq;
+  aiBusy = { id, jobId, moveNo: s.moveNo, timer: setTimeout(() => { console.error("il computer ci mette troppo nella partita", id); aiWorker.terminate(); }, 60000) };
+  aiWorker.postMessage({ id, jobId, state: s, seat, level: s.seats[seat].livello || "normale" });
 }
 function onAiResult(m) {
-  if (!aiBusy || aiBusy.id !== m.id) return;
+  if (!aiBusy || aiBusy.jobId !== m.jobId || aiBusy.id !== m.id) return;
   clearTimeout(aiBusy.timer);
   if (aiBusy.hint) {
     const j = aiBusy.hint; aiBusy = null;
@@ -297,7 +309,7 @@ function onAiResult(m) {
       const s = g.s, seat = s.turn; G.applyCfg(s.cfg || BASE_RULES);
       const mv = m.move || { kind: "pass" };
       if (m.error) console.error("errore del computer nella partita", m.id, m.error);
-      let r = mv.kind === "play" ? G.play(s, seat, mv.placed, mv.opts, rng) : mv.kind === "alchimia" ? G.alchimia(s, seat, rng, mv.letters || undefined) : G.pass(s, seat, rng);
+      let r = mv.kind === "play" ? G.play(s, seat, mv.placed, mv.opts, rng) : mv.kind === "alchimia" ? G.alchimia(s, seat, rng, mv.letters || undefined) : mv.kind === "trasforma" ? G.trasforma(s, seat, mv.da, mv.a, rng) : G.pass(s, seat, rng);
       if (!r || !r.ok) r = G.pass(s, seat, rng);
       commitState(m.id, r.state);
     }
@@ -332,6 +344,10 @@ function doMove(id, player, body) {
   } else if (body.kind === "alchimia") {
     const letters = Array.isArray(body.letters) ? body.letters.slice(0, 20).map(String) : undefined;
     r = G.alchimia(s, seat, rng, letters && letters.length ? letters : undefined);
+  } else if (body.kind === "trasforma") {
+    const da = String(body.da || ""), a = String(body.a || "");
+    if (!/^[A-Z]$/.test(da) || !/^[A-Z]$/.test(a)) throw fail(400, "Mossa non valida.");
+    r = G.trasforma(s, seat, da, a, rng);
   } else if (body.kind === "pass") r = G.pass(s, seat, rng);
   else throw fail(400, "Mossa sconosciuta.");
   if (!r.ok) throw fail(422, r.err);
@@ -443,11 +459,11 @@ async function api(req, res, parts) {
       if (active.length >= LIMITS.activeGamesPerPlayer) throw fail(429, "Hai già {n} partite in corso: finiscine o abbandonane qualcuna.", { n: active.length });
       if (cpu && active.filter(s => s.seats.B && s.seats.B.cpu).length >= LIMITS.activeCpuGamesPerPlayer) throw fail(429, "Hai già {n} partite in corso contro il computer.", { n: LIMITS.activeCpuGamesPerPlayer });
       if (!hit("games:" + p.id, LIMITS.gamesPerPlayerPerHour, 3600e3)) throw fail(429, "Hai creato molte partite nell'ultima ora: riprova più tardi.");
-      // dizionari: uno o più tra quelli noti (le richieste di prima mandano "lingua"); regole: s1 (predefinite)
-      // oppure v5f (classiche, con lessico: solo con il solo dizionario italiano)
+      // dizionari: uno o più tra quelli noti (le richieste di prima mandano "lingua"); regole: s2 (semplificate, predefinite
+      // dal 28/11/2026; chi chiede ancora "s1" le riceve) oppure v5f (classiche, con lessico: solo con il solo dizionario italiano)
       const dizionari = G.dizionariDi({ dizionari: Array.isArray(body.dizionari) ? body.dizionari.slice(0, 8).map(String) : [body.lingua] });
-      const regole = dizionari.join() === "it" && body.regole === "v5f" ? "v5f" : "s1";
-      const pvOk = regole === "s1" ? [40, 60, 80] : [20, 25, 30], pvDef = regole === "s1" ? 60 : 30;
+      const regole = dizionari.join() === "it" && body.regole === "v5f" ? "v5f" : "s2";
+      const pvOk = regole === "s2" ? [25, 30, 35, 40] : [20, 25, 30], pvDef = regole === "s2" ? (dizionari.length > 1 ? PV_MISTE : 30) : 30;
       const hp = pvOk.includes(+body.hp) ? +body.hp : pvDef;
       G.applyCfg(Object.assign({}, G.PRESETS[regole], { hp, dizionari }));
       const s = G.newGame(rng);
@@ -491,9 +507,12 @@ async function api(req, res, parts) {
       if (seat !== s.turn) throw fail(409, "Non è il tuo turno.");
       if (!s.seats[G.enemy(seat)]) throw fail(409, "Aspetta che arrivi lo sfidante.");
       if (body.moveNo !== s.moveNo) throw fail(409, "La partita è cambiata nel frattempo: la ricarico.");
+      const hKey = id + ":" + seat;
+      if (pendingHints.has(hKey)) throw fail(409, "C'è già un suggerimento in calcolo per questa partita.");
       G.setLinguaUI(L);
       const r = G.suggerisci(s, seat); if (!r.ok) throw fail(422, r.err);
-      let updated = commitState(id, r.state, true), hint, state = r.state;
+      let updated = commitState(id, r.state, true), hint = null, state = r.state;
+      pendingHints.add(hKey);
       try { hint = await askAi(id, JSON.parse(JSON.stringify(r.state)), seat); }
       catch (e) {
         // il suggerimento non è arrivato: si restituiscono i PV, se la partita non è andata avanti
@@ -504,8 +523,15 @@ async function api(req, res, parts) {
           g2.s.hp[seat] += r.costo; g2.s.log.push({ k: "suggFallito", a: { n: r.costo } });
           state = g2.s; updated = commitState(id, g2.s, true);
         }
+      } finally {
+        pendingHints.delete(hKey);
       }
-      return sendJson(res, 200, { id, s: viewFor(state, p.id), updated, hint });
+      const curG = loadGame(id);
+      if (!curG) throw fail(404, "Partita non trovata.");
+      if (curG.s.moveNo !== r.state.moveNo || curG.s.winner) {
+        return sendJson(res, 200, { id, s: viewFor(curG.s, p.id), updated: curG.row.updated, hint: null });
+      }
+      return sendJson(res, 200, { id, s: viewFor(curG.s, p.id), updated: curG.row.updated, hint });
     }
     if (parts[2] === "resign" && method === "POST") {
       const p = needMe(), g = loadGame(id); if (!g) throw fail(404, "Partita non trovata.");

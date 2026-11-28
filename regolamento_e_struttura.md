@@ -3,6 +3,7 @@
 
 > **Versione 5: gioco digitale per Android, a turni asincroni.** Le versioni precedenti sono in `regolamento_e_struttura_v1.md` (da tavolo), `_v2.md` e `_v4.md`.
 > Questa versione nasce da una serie di partite simulate (vedi *Note di bilanciamento* in fondo).
+> Nel gioco le nuove partite usano le **regole semplificate s2** (vedi *Regole semplificate (s2)*). Le regole classiche descritte qui sotto restano disponibili con il dizionario italiano.
 > Le regole segnate con 🧪 sono da verificare nel prototipo. Quelle segnate con ❓ sono ancora da decidere.
 > Tutti i conteggi (Stabilità, resistenza, ponti, Tempeste) li gestisce il gioco.
 
@@ -204,7 +205,8 @@ Cosa succede alle lettere:
 1. **Inizio turno:** le tue parole d'attacco, neutre e Cataclisma perdono 1 di Stabilità.
 2. **Azione** (una sola):
    * **Scrivere una parola:** nel tuo Sanctum, nella Terra di Mezzo (posa collegata) o nel Sanctum nemico (con il Collegamento attivo). Se è un attacco scegli il punto di lancio, poi si risolvono subito danni, Falò e Tempeste. Se è una parola neutra nel tuo Sanctum puoi consacrarla come difesa.
-   * **Alchimia:** scarti da **1 a 7 lettere** a scelta e ne peschi altrettante.
+   * **Alchimia:** scarti nel Focolare le lettere che vuoi, da una a tutte. Poi peschi come a fine turno, cioè solo fino a tornare a 7 lettere. Se avevi più di 7 lettere, peschi meno di quante ne hai scartate, o nessuna: l'Alchimia serve anche ad alleggerire una mano troppo piena.
+     > **Esempio.** Hai 10 lettere e ne scarti 2: te ne restano 8 e non peschi niente. Se invece ne scarti 5, te ne restano 5 e ne peschi 2.
    * **Passare.**
 3. **Fine turno:** peschi dalla Sacca fino a 7 lettere. Se ne hai già 7 o più, non peschi. Se la Sacca è vuota, il Focolare viene rimescolato e diventa la nuova Sacca.
 
@@ -217,6 +219,50 @@ Cosa succede alle lettere:
 * Se il tempo scade, il turno **passa da solo**, come se il giocatore avesse passato.
 * Chi lascia scadere il tempo **2 volte di fila** perde la partita. Basta giocare un turno qualsiasi per azzerare il conto.
 * Il tempo non vale nelle partite contro il computer né nella modalità prova (un giocatore muove entrambi i maghi).
+
+---
+
+## ✨ Regole semplificate (s2): quelle predefinite nel gioco
+
+Dal 28/11/2026 le nuove partite usano le **regole semplificate s2**. Le regole classiche descritte sopra restano disponibili, ma solo con il dizionario italiano. Le partite già iniziate tengono le regole con cui sono nate.
+
+Le s2 sono le regole classiche, con queste differenze.
+
+**1. Niente lessico.** Le parole non hanno un elemento: ogni parola valida è **neutra** finché non decidi cosa farne. Non esistono Cataclismi, Barriere né Contromagia.
+
+**2. L'attacco**
+* Qualsiasi parola può essere **lanciata**: lo scegli quando la posi (pulsante «Attacca»).
+* Si lancia **solo dal Sanctum nemico**. La parola deve avere almeno una lettera lì, e per entrarci servono il **Collegamento Magico** attivo e l'**aggancio** a una parola dell'avversario che ha una lettera nel suo Sanctum.
+* La potenza è il punteggio della parola. L'incantesimo corre lungo la colonna verso il bordo esterno nemico e perde potenza come nelle regole classiche.
+* Dopo il lancio la parola **si consuma**: sparisce, tranne le lettere che reggono anche un'altra parola.
+
+**3. La difesa: Consacrazione e Scudo**
+* Si consacra una parola scritta **tutta sulla riga del bordo** del proprio Sanctum, la più lontana dal centro (riga 1 per il Blu, riga 11 per il Rosso).
+* La difesa consacrata ha resistenza **pari al suo punteggio**. Ne puoi avere **al massimo 2** attive, e ognuna perde 1 di Stabilità a ogni tuo turno.
+* **Scudo di riga:** ogni incantesimo lanciato nel tuo Sanctum deve superare i tuoi Scudi **prima di partire**.
+  * Se la sua potenza è minore o uguale alla resistenza dello Scudo, l'incantesimo si ferma e lo Scudo si erode.
+  * Se è maggiore, lo Scudo si disintegra e l'incantesimo prosegue con la potenza che resta.
+  * Gli Scudi si sommano.
+  * Lo Scudo sta sulla riga del bordo, che ogni incantesimo deve attraversare per uscire, quindi **protegge tutto il Sanctum**.
+
+> **Esempio.** Il Rosso consacra `SOLE` (2 + 1 + 3 + 1 = 7) in riga 11: è uno Scudo da 7. Il Blu entra nel Sanctum del Rosso e lancia `FUMO` (4 + 3 + 3 + 1 = 11) dalla riga 10. Prima di partire l'incantesimo incontra lo Scudo: 11 > 7, `SOLE` si disintegra e l'incantesimo prosegue con 4. Attraversa la riga 11, ormai vuota in quella colonna (−1), e toglie **3 PV** al Rosso.
+
+**4. La Trasformazione** (nuova azione)
+* Al posto della mossa trasformi **una lettera pesante** del tuo Grimorio, da **8 punti in su**, in una lettera che vale **al massimo la metà**:
+  * in italiano H (8), Q (10) e Z (10);
+  * in inglese X, Z, J (8) e Q (10).
+* La lettera **resta quella nuova**, anche quando poi torna nella Sacca o nel Focolare.
+* Il turno passa all'avversario, come con l'Alchimia.
+
+> **Esempio.** Hai `Q Z E R T O A`. Trasformi la `Q` (10) in una `D` (4): ora hai `D Z E R T O A`. La `H` (8) potrebbe diventare al massimo una lettera da 4 punti.
+
+**5. Punti Vita:** si parte da **30 PV**. Alla creazione della partita si possono scegliere 25, 30, 35 o 40 PV. Con più dizionari insieme il valore proposto è 35, perché le partite sono più corte.
+
+**Il turno in s2.** L'azione è una sola tra queste:
+* scrivere una parola, che poi puoi lanciare o consacrare;
+* l'Alchimia;
+* la Trasformazione;
+* passare.
 
 ---
 
@@ -389,6 +435,72 @@ Le partite possono usare il dizionario inglese (ENABLE, 141 047 parole, Sacca in
 * **Con due dizionari le partite sono un po' più corte** (circa 2 turni a testa in meno). Le mosse possibili per turno salgono da circa 900 a circa 1 260, quindi è più facile trovare parole forti e il danno per colpo sale a 12,8. Il Blu vince 28 su 50: su così poche partite non è un segnale.
 * **Ancora aperto:** la seconda serie di 50 partite miste si è fermata per mancanza di memoria del computer di prova. Va ripetuta per confermare i numeri.
 
+### Dalla s1 alla s2 (simulazioni del 26-28/11/2026)
+
+**Il problema della s1:** va a segno l'**83%** dei colpi. Gli Scudi indeboliscono gli attacchi, ma quasi mai li fermano. Circa 100 partite per variante, giocatori automatici, regole s1 dove non indicato.
+
+**1. Come si entra nel Sanctum nemico.** Abbiamo provato tre alternative all'aggancio obbligatorio a una parola nemica:
+
+| Variante | Turni a testa (mediana) | Partite oltre 40 turni | Blu / Rosso | A segno |
+|---|---|---|---|---|
+| s1 (riferimento, 60 PV) | 15 | 1% | 55 / 45 | 83% |
+| **A:** ci si aggancia a una parola qualsiasi nel Sanctum nemico | 14,5 | – | 63 / 41 | 82% |
+| **B:** basta essere collegati al proprio ponte, 35 PV | 18,5 | 14% | 51 / 52 | 58% |
+| **B+:** ponte oppure aggancio, 35 PV | 9,5 | 0% | 57 / 45 | 80% |
+
+* **A** non cambia nulla.
+* **B** abbassa i colpi a segno, ma blocca una partita su sei. Le parole nemiche staccate dal centro non si raggiungono più: si resta alla riga d'ingresso, dove gli Scudi fermano tre colpi su quattro.
+* **B+** toglie i blocchi, ma torna all'80% di colpi a segno.
+* **Conclusione:** l'aggancio della s1 resta.
+
+**2. Consacrazione solo sulla riga del bordo.** Ogni Scudo protegge tutto il Sanctum:
+
+| Variante | PV | Turni a testa (mediana) | Partite oltre 40 turni | Blu / Rosso / patta | A segno |
+|---|---|---|---|---|---|
+| Bordo, resistenza doppia | 60 | 59,5 | 68% | 44 / 39 / 19 | 46% |
+| Bordo, resistenza = punteggio | 60 | 26,5 | 19% | 53 / 49 / 0 | 73% |
+| Bordo, resistenza = punteggio | 40 | 16,5 | 9% | 54 / 48 / 0 | 71% |
+| **Bordo, resistenza = punteggio** (204 partite) | **30** | **13,5** | **1,5%** | **111 / 93 / 0** | **72%** |
+| Bordo, resistenza = punteggio (204 partite) | 35 | 17 | 7% | 110 / 94 / 0 | 68% |
+
+**3. Colpi più piccoli.** Con 30 PV la partita si decide in 3-4 colpi, perché il 42% dei colpi toglie almeno un terzo dei PV. Abbiamo provato a rimpicciolirli:
+* l'incantesimo che perde 2 per casella, con 40-45 PV, dà mediana di 21-22 turni e circa 12% di partite lunghe;
+* la potenza al 70%, con 40 PV, dà mediana di 38 turni e 46% di partite lunghe.
+
+Servono più colpi per vincere, ma le partite si allungano troppo: per ora niente.
+
+**4. La Trasformazione.** Sono le stesse 102 partite, con lo stesso seed, con e senza Trasformazione. La regola è: bordo, resistenza = punteggio, 30 PV.
+
+| | Senza | **Con Trasformazione** |
+|---|---|---|
+| Turni a testa (mediana) | 14,5 | **19,5** |
+| Partite oltre 40 turni | 1% | 4% |
+| Blu / Rosso | 53 / 49 | 49 / 53 |
+| A segno | 73% | 68% |
+| Lettere pesanti in mano (media) | 1,0 | 0,4 |
+| Mani con 2 o più lettere pesanti | 27% | 4% |
+| Mosse possibili per turno | 819 | 1 300 |
+
+* Le lettere pesanti quasi spariscono e le mosse possibili aumentano di oltre il 50%.
+* Ogni Trasformazione costa un turno: circa 2 a testa per partita, quindi le partite durano circa 5 turni in più. Restano dentro l'obiettivo di 15-20 turni.
+* L'Alchimia diventa rara: serve quasi solo ad alleggerire la mano.
+* Il giocatore automatico usa la Trasformazione in modo semplice, una persona la userà meglio.
+
+**5. Partite con italiano e inglese insieme** (s2, 100 partite per riga). Con due dizionari le partite sono più corte: servono più PV.
+
+| PV | Turni a testa (mediana) | Partite oltre 40 turni | Blu / Rosso | A segno |
+|---|---|---|---|---|
+| 30 (senza Trasformazione) | 10 | 1% | 53 / 47 | 70% |
+| **35** | **18,5** | **5%** | **51 / 49** | **67%** |
+| 40 | 19,5 | 6% | 49 / 51 | 69% |
+
+35 PV bastano per avere la stessa durata delle partite in italiano: è il valore proposto per le partite miste.
+
+**Altri dati sulla s2**
+* **La mano:** in un turno su cinque si gioca con 9 o più lettere. Le Rune tornano in mano quando una parola si spegne o viene distrutta.
+* **Il vantaggio del Blu** resta intorno al 54% in quasi tutte le varianti. Viene dalla **corsa al ponte**: il Blu attiva il Collegamento per primo in 3 partite su 4.
+* **La rimonta:** chi finisce sotto di un terzo dei PV vince circa 1 volta su 7.
+
 ---
 
 ## ❓ Punti ancora aperti
@@ -396,7 +508,8 @@ Le partite possono usare il dizionario inglese (ENABLE, 141 047 parole, Sacca in
 1. **Effetti dei Cataclismi** e, di conseguenza, delle Barriere e del `NO`.
 2. **Consacrazioni frequenti:** circa un terzo delle mosse. Da osservare giocando.
 3. **Falò ancora frequente:** circa 14 a partita.
-4. **Mano che si gonfia:** con le Rune che tornano si arriva a 9-11 lettere, spesso pesanti. Serve un limite?
+4. **Mano che si gonfia:** con le Rune che tornano si arriva a 9-11 lettere. In s2 la Trasformazione toglie quasi tutte le lettere pesanti, e l'Alchimia permette già di alleggerire la mano. Da osservare giocando se serve anche un limite.
+8. **Vantaggio del Blu (s2):** circa 54% delle vittorie, perché vince la corsa al ponte. Da osservare nelle partite vere prima di correggerlo.
 5. **Durata:** circa 40 turni a testa con 30 PV. Per il gioco a distanza 15-20 sarebbero più adatti: da provare con 20 o 25 PV.
 6. ~~Tempo massimo per turno~~: deciso, 48 ore (vedi «Partite a distanza»).
 7. **Vantaggi elementali** (per ora solo aritmetica).

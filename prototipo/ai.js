@@ -1,6 +1,6 @@
 /* Grimorio — giocatore automatico (web worker).
    Riceve {state, seat, level} e risponde con la mossa scelta:
-   {kind:"play", placed, opts} | {kind:"alchimia", letters} | {kind:"pass"} */
+   {kind:"play", placed, opts} | {kind:"alchimia", letters} | {kind:"trasforma", da, a} | {kind:"pass"} */
 importScripts("engine.js");
 const G = self.Grimorio;
 // un dizionario per lingua della partita; TEXT / OFFS / N sono quelli della partita in corso
@@ -109,6 +109,23 @@ function evalState(s, p) {
   return v;
 }
 
+// Trasformazione (regole s2): la lettera più pesante della mano diventa la lettera permessa più frequente nel dizionario
+// (una vocale se in mano ce ne sono meno di 2). Stessa scelta delle simulazioni (strumenti/sim.js).
+let FREQ = null;
+function freqLettere() {
+  if (FREQ && FREQ.text === TEXT) return FREQ.f;
+  const f = {}; for (let i = 0; i < TEXT.length; i++) { const c = TEXT[i]; if (TEXT.charCodeAt(i) !== 10) f[c] = (f[c] || 0) + 1; }
+  FREQ = { text: TEXT, f }; return f;
+}
+function sceltaTrasforma(s, p) {
+  const lettere = Object.keys(G.VAL);
+  const pes = s.hands[p].filter(l => lettere.some(x => G.puoTrasformare(l, x))).sort((x, y) => G.VAL[y] - G.VAL[x]);
+  if (!pes.length) return null;
+  const da = pes[0], vow = s.hands[p].filter(l => "AEIOU".includes(l)).length, f = freqLettere();
+  const a = lettere.filter(x => G.puoTrasformare(da, x) && (vow >= 2 || "AEIOU".includes(x))).sort((x, y) => (f[y] || 0) - (f[x] || 0))[0];
+  return a ? { da, a, pesanti: pes.length } : null;
+}
+
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
 function choose(s, p, level) {
@@ -136,6 +153,12 @@ function choose(s, p, level) {
       const r = G.play(s, p, pl, o, Math.random); if (!r.ok) continue;
       scored.push({ val: evalState(r.state, p) + Math.random() * 0.5, placed: pl, opts: o });
     }
+  }
+  // Trasformazione al posto della mossa: con almeno 2 lettere pesanti, o se la mossa migliore guadagna meno di 3
+  const tf = G.CFG.trasformazione ? sceltaTrasforma(s, p) : null;
+  if (tf) {
+    const gain = scored.length ? Math.max(...scored.map(x => x.val)) - evalState(s, p) : -Infinity;
+    if (!scored.length || tf.pesanti >= 2 || gain < 3) return { kind: "trasforma", da: tf.da, a: tf.a };
   }
   if (!scored.length) {
     const heavy = s.hands[p].filter(l => G.VAL[l] >= 8);

@@ -24,9 +24,9 @@ parentPort.on("message", job => {
     G.applyCfg(job.state.cfg || {});
     const AI = aiFor(G.CFG.dizionari);
     const move = AI.choose(job.state, job.seat, job.level);
-    parentPort.postMessage({ id: job.id, move });
+    parentPort.postMessage({ id: job.id, jobId: job.jobId, move });
   } catch (e) {
-    parentPort.postMessage({ id: job.id, error: String(e && e.message || e) });
+    parentPort.postMessage({ id: job.id, jobId: job.jobId, error: String(e && e.message || e) });
   }
 });
 parentPort.postMessage({ ready: true });

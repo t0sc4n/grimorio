@@ -34,12 +34,12 @@ rep('''    h("span", { class: "st", text: st + " · " + tr("mossa {n}", { n: s.m
 rep('''    h("p", { class: "status" }, status, sub ? h("small", { text: sub }) : null),''',
     '''    h("p", { class: "status" }, status, sub ? h("small", { text: sub }) : null, me && clockText(s, myTurn()) ? h("small", { id: "orologio", text: clockText(s, myTurn()) }) : null),''')
 
-rep('''    h("li", { text: "Le parole d'attacco e neutre perdono 1 di Stabilità a ogni tuo turno e poi si spengono. Alchimia: cambi da 1 a 7 lettere invece di scrivere." }),''',
-    '''    h("li", { text: "Le parole d'attacco e neutre perdono 1 di Stabilità a ogni tuo turno e poi si spengono. Alchimia: cambi da 1 a 7 lettere invece di scrivere." }),
+rep('''    h("li", { text: "Le parole d'attacco e neutre perdono 1 di Stabilità a ogni tuo turno e poi si spengono. Alchimia: invece di scrivere scarti le lettere che vuoi e peschi fino a tornare a 7." }),''',
+    '''    h("li", { text: "Le parole d'attacco e neutre perdono 1 di Stabilità a ogni tuo turno e poi si spengono. Alchimia: invece di scrivere scarti le lettere che vuoi e peschi fino a tornare a 7." }),
     h("li", { text: "A distanza hai 48 ore per ogni turno: allo scadere il turno passa da solo. Chi lo lascia scadere 2 volte di fila perde la partita." }),''')
 # anche nelle regole semplificate (s1)
-rep('''    h("li", { text: "Le parole non lanciate fanno da ponte o da ostacolo e perdono 1 di Stabilità a ogni tuo turno. Alchimia: cambi da 1 a 7 lettere invece di scrivere." }),''',
-    '''    h("li", { text: "Le parole non lanciate fanno da ponte o da ostacolo e perdono 1 di Stabilità a ogni tuo turno. Alchimia: cambi da 1 a 7 lettere invece di scrivere." }),
+rep('''    h("li", { text: "Le parole non lanciate fanno da ponte o da ostacolo e perdono 1 di Stabilità a ogni tuo turno. Alchimia: invece di scrivere scarti le lettere che vuoi e peschi fino a tornare a 7." }),''',
+    '''    h("li", { text: "Le parole non lanciate fanno da ponte o da ostacolo e perdono 1 di Stabilità a ogni tuo turno. Alchimia: invece di scrivere scarti le lettere che vuoi e peschi fino a tornare a 7." }),
     h("li", { text: "A distanza hai 48 ore per ogni turno: allo scadere il turno passa da solo. Chi lo lascia scadere 2 volte di fila perde la partita." }),''')
 open(p, "w", encoding="utf-8").write(s)
 print("ok")

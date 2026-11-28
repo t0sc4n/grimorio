@@ -11,15 +11,17 @@ Come a Scarabeo, si scrivono parole su una griglia. Qui però le parole diventan
 - **Si gioca qui:** https://grimorio.tecnogenitori.com
 - **Regole complete e storia del bilanciamento:** [`regolamento_e_struttura.md`](regolamento_e_struttura.md)
 
-## Le regole in breve (s1, semplificate)
+## Le regole in breve (s2, semplificate)
 
 | | |
 |---|---|
 | **Griglia** | 11×11: Sanctum Blu (3 righe), Terra di Mezzo (5 righe, al centro il Passo Arcano), Sanctum Rosso (3 righe). Ognuno vede il proprio Sanctum in basso. |
-| **Turno** | Scrivi una parola valida nella lingua della partita, come a Scarabeo. In alternativa usi l'Alchimia (cambi lettere) o passi. |
+| **Turno** | Scrivi una parola valida nella lingua della partita, come a Scarabeo. In alternativa usi l'Alchimia (scarti lettere e peschi fino a 7), la Trasformazione o passi. |
 | **Collegamento Magico** | Una catena di parole dal tuo Sanctum fino a una parola che tocca il Passo Arcano. Serve per entrare nel Sanctum nemico. |
-| **Attacco** | Qualsiasi parola con una lettera nel Sanctum nemico si può lanciare. La sua potenza è il punteggio della parola e cala lungo il tragitto. Dopo il lancio la parola si consuma. |
-| **Difesa** | Una parola del tuo Sanctum si può consacrare: resistenza pari al doppio del punteggio, massimo 2 attive. Protegge tutta la sua riga (Scudo). |
+| **Attacco** | Qualsiasi parola con una lettera nel Sanctum nemico, agganciata a una parola dell'avversario, si può lanciare. La sua potenza è il punteggio della parola e cala lungo il tragitto. Dopo il lancio la parola si consuma. |
+| **Difesa** | Una parola scritta sulla riga del bordo del tuo Sanctum si può consacrare: resistenza pari al punteggio, massimo 2 attive. È uno Scudo che protegge tutto il Sanctum. |
+| **Trasformazione** | Al posto della mossa una lettera pesante (H, Q, Z; in inglese X, Z, J, Q) diventa una lettera che vale al massimo la metà. |
+| **Punti Vita** | 30 (35 proposti con più dizionari insieme); si possono scegliere 25, 30, 35 o 40. |
 | **Grande Falò** | Una volta ogni 3 turni bruci le parole che incroci al centro o nel Sanctum nemico, Scudi compresi. |
 | **Suggerisci mossa** | Il computer ti propone la mossa migliore al costo di 3 Punti Vita. Resta scritto nella cronaca. |
 | **A distanza** | 48 ore per turno. Allo scadere il turno passa; chi lo lascia scadere 2 volte di fila perde. |
@@ -34,7 +36,7 @@ Le scelte sono due e indipendenti:
   - **Italiano:** dizionario italiano e Sacca di 21 lettere.
   - **Inglese:** dizionario ENABLE e Sacca di 26 lettere, con valori e quantità ricavati dalle frequenze dell'inglese.
   - **Più dizionari insieme:** una parola vale se è in almeno uno dei dizionari scelti. La Sacca è **mista**: 26 lettere, con quantità e valori nella media delle lingue scelte.
-  - Le regole classiche ci sono solo con il solo dizionario italiano, perché il loro lessico è italiano; negli altri casi si gioca con s1.
+  - Le regole classiche ci sono solo con il solo dizionario italiano, perché il loro lessico è italiano; negli altri casi si gioca con le semplificate (s2).
 
 Si può quindi giocare una partita in italiano con l'interfaccia in inglese, e viceversa. Online anche i messaggi del server e le notifiche arrivano nella lingua di ciascun giocatore.
 
@@ -67,7 +69,7 @@ online/                      versione per il web, ospitata su una VPS
 
 ### Come sono collegati prototipo e versione online
 
-- **Il motore è unico.** `prototipo/engine.js` e `online/public/engine.js` sono lo stesso file: il server lo usa per controllare ogni mossa, il browser per mostrare le anteprime. Le regole stanno nei preset (`s1`, `v5f`, …) e ogni partita salva le proprie, così cambiare le regole non tocca le partite in corso.
+- **Il motore è unico.** `prototipo/engine.js` e `online/public/engine.js` sono lo stesso file: il server lo usa per controllare ogni mossa, il browser per mostrare le anteprime. Le regole stanno nei preset (`s2`, `s1`, `v5f`, …) e ogni partita salva le proprie, così cambiare le regole non tocca le partite in corso.
 - **Il client online si genera dal prototipo.** `online/public/index.html` e `app.js` nascono da `prototipo/index.html` applicando, in quest'ordine, gli script in `prototipo/strumenti/`:
   1. `patch_online.py`: dal database di claude.ai all'API del server;
   2. `patch_sicurezza_client.py`: script esterno per la Content-Security-Policy e font locali;
@@ -98,9 +100,9 @@ Per il prototipo basta servire la cartella `prototipo/` con qualsiasi server sta
 
 ```bash
 cd prototipo/strumenti
-node sim.js ../ 100 7 1 s1 sim_s1.json   # 100 partite tra giocatori automatici con le regole s1
+node sim.js ../ 100 7 1 s2 sim_s2.json   # 100 partite tra giocatori automatici con le regole s2
 node sim.js ../ 100 7 1 s1en sim_en.json # le stesse regole in inglese (serve words-en.txt in chiaro in prototipo/)
-node riassunto.js ../sim_s1.json         # durata, vittorie Blu/Rosso, attacchi, difese, Falò
+node riassunto.js ../sim_s2.json         # durata, vittorie Blu/Rosso, attacchi, difese, Falò
 ```
 
 Ogni simulazione occupa circa 1 GB di memoria per il dizionario.

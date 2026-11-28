@@ -77,8 +77,16 @@ function connectWs() {
   ws.onclose = () => { ws = null; clearTimeout(wsTimer); wsTimer = setTimeout(connectWs, wsDelay); wsDelay = Math.min(wsDelay * 2, 30000); };
 }
 function wsSend(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+function isStale(oldData, newData) {
+  if (!oldData || !oldData.s || !newData || !newData.s) return false;
+  if (newData.s.moveNo < oldData.s.moveNo) return true;
+  if (newData.s.moveNo === oldData.s.moveNo && (newData.updated || 0) < (oldData.updated || 0)) return true;
+  return false;
+}
 function onServerGame(m) {
-  games[m.id] = { id: m.id, s: m.s, updated: m.updated };
+  const next = { id: m.id, s: m.s, updated: m.updated };
+  if (isStale(games[m.id], next)) return;
+  games[m.id] = next;
   if (cur && cur.id === m.id) onGameData(games[m.id]); else render();
 }
 document.addEventListener("visibilitychange", () => {
@@ -137,8 +145,8 @@ async function useAccessLink(token) {
 }
 
 ''')
-rep("function freshUi() { return { place: null, pending: [], sel: null, mode: null, launch: null, alch: null, passConfirm: false, hintConfirm: false, hintLaunch: null, delConfirm: false, claimConfirm: null, busy: false, order: null }; }",
-    "function freshUi() { return { place: null, pending: [], sel: null, mode: null, launch: null, alch: null, passConfirm: false, hintConfirm: false, hintLaunch: null, delConfirm: false, busy: false, order: null }; }")
+rep("function freshUi() { return { place: null, pending: [], sel: null, mode: null, launch: null, alch: null, trasf: null, passConfirm: false, hintConfirm: false, hintLaunch: null, delConfirm: false, claimConfirm: null, busy: false, order: null }; }",
+    "function freshUi() { return { place: null, pending: [], sel: null, mode: null, launch: null, alch: null, trasf: null, passConfirm: false, hintConfirm: false, hintLaunch: null, delConfirm: false, busy: false, order: null }; }")
 
 # ---------- lobby ----------
 rep('''  const connMsg = { collego: "Collegamento alle partite condivise…", lento: "Le partite condivise non rispondono ancora. Controlla la connessione.", errore: "Non riesco a leggere le partite condivise.", locale: "Modalità locale: le partite restano solo su questo dispositivo. Apri la pagina da claude.ai per giocare a distanza.", ok: "" }[conn];
@@ -180,7 +188,7 @@ rep_range('async function createGame(hp, both, vs, regole, dizionari) {', '// --
 # ---------- apertura e aggiornamento della partita ----------
 rep_range('// ---------- partita ----------', 'function announce(s) {', '''// ---------- partita ----------
 function openGame(id) {
-  ui = freshUi(); anim = null;
+  ui = freshUi(); anim = null; clearSfxTimers();
   cur = { id, data: games[id] || null };
   try { history.replaceState(null, "", "#g=" + id); } catch (e) {}
   wsSend({ type: "watch", id });
@@ -189,7 +197,7 @@ function openGame(id) {
   refreshGame(id);
 }
 async function refreshGame(id) {
-  try { const r = await api("GET", "games/" + id); games[id] = r; if (cur && cur.id === id) onGameData(r); }
+  try { const r = await api("GET", "games/" + id); if (isStale(games[id], r)) return; games[id] = r; if (cur && cur.id === id) onGameData(r); }
   catch (e) {
     if (e.status === 404) { toast("Questa partita non esiste più.", true); if (cur && cur.id === id) leaveGame(); }
     else toast(e.message, true);
@@ -197,12 +205,13 @@ async function refreshGame(id) {
 }
 function leaveGame() {
   wsSend({ type: "unwatch" });
-  cur = null; ui = freshUi(); anim = null;
+  cur = null; ui = freshUi(); anim = null; clearSfxTimers();
   usaDiz(dizScelti());
   try { history.replaceState(null, "", location.pathname); } catch (e) {}
   render(); loadGames();
 }
 function onGameData(data, first) {
+  if (!first && isStale(cur && cur.data, data)) return;
   const prev = cur && cur.data && cur.data.s;
   cur.data = JSON.parse(JSON.stringify(data));
   const s = cur.data.s;
@@ -239,6 +248,12 @@ rep_range('function doPlay(extra) {', 'function onCell(k) {', '''function doPlay
   const v = G.validate(s, p, placed(), o);
   if (!v.ok) return toast(v.err, true);
   sendMove({ kind: "play", placed: placed(), opts: o });
+}
+''')
+rep_range('function doTrasforma() {', 'function doAlchimia() {', '''function doTrasforma() {
+  const s = S(), p = mySeat(), hand = s.hands[p];
+  if (!ui.trasf || ui.trasf.i === null || !ui.trasf.a) return;
+  sendMove({ kind: "trasforma", da: hand[ui.trasf.i], a: ui.trasf.a });
 }
 ''')
 rep_range('function doAlchimia() {', '// info su una casella', '''function doAlchimia() {
